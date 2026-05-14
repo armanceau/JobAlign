@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from "react";
 
-function App() {
-  const [results, setResults] = useState(null)
+function App(): React.ReactElement {
+  const [results, setResults] = useState<null>(null);
 
   return (
     <div>
       <h1>JobAlign</h1>
       <p>CV & Job Offer Analyzer</p>
-      
+
       {!results ? (
         <div>
           <h2>Upload CV and Job Offer</h2>
@@ -22,7 +22,7 @@ function App() {
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
