@@ -88,6 +88,9 @@ async def upload_cv(file: UploadFile = File(...)):
                 "path": file_path
             }
         )
+
+    except HTTPException:
+        raise
     
     except Exception as e:
         raise HTTPException(
