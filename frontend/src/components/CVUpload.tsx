@@ -16,6 +16,7 @@ export const CVUpload: React.FC<CVUploadProps> = ({ onUploadSuccess }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -56,7 +57,7 @@ export const CVUpload: React.FC<CVUploadProps> = ({ onUploadSuccess }) => {
       const formData = new FormData();
       formData.append("file", file);
 
-      await axios.post("http://localhost:8000/upload-cv", formData, {
+      await axios.post(`${API_URL}/upload-cv`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

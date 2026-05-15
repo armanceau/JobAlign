@@ -2,6 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import os
+import uuid
+import re
 
 app = FastAPI(title="JobAlign API", version="0.1.0")
 
@@ -16,9 +18,8 @@ app.add_middleware(
 # Configuration
 UPLOAD_DIR = "uploads"
 ALLOWED_CONTENT_TYPES = ["application/pdf"]
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
-# Créer le dossier uploads s'il n'existe pas
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.get("/")
@@ -53,6 +54,13 @@ async def upload_cv(file: UploadFile = File(...)):
             status_code=400,
             detail="Le fichier doit avoir une extension .pdf"
         )
+
+    def sanitize_filename(filename: str) -> str:
+        """Return a safe filename by stripping path components and
+        replacing unsafe characters with underscores.
+        """
+        name = os.path.basename(filename)
+        return re.sub(r'[^A-Za-z0-9._-]', '_', name)
     
     try:
         contents = await file.read()
@@ -62,8 +70,11 @@ async def upload_cv(file: UploadFile = File(...)):
                 status_code=400,
                 detail=f"Le fichier dépasse la limite de 10 MB. Taille reçue: {len(contents) / 1024 / 1024:.2f} MB"
             )
-        
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+        safe_name = sanitize_filename(file.filename)
+        unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+
+        file_path = os.path.join(UPLOAD_DIR, unique_name)
         with open(file_path, "wb") as f:
             f.write(contents)
         
@@ -71,7 +82,8 @@ async def upload_cv(file: UploadFile = File(...)):
             status_code=201,
             content={
                 "message": "CV téléchargé avec succès",
-                "filename": file.filename,
+                "original_filename": file.filename,
+                "stored_filename": unique_name,
                 "size": len(contents),
                 "path": file_path
             }
