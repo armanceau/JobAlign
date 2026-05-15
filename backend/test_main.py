@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
 from main import app
+import main as main_module
 import io
+import os
+import pytest
 
 client = TestClient(app)
 
@@ -17,14 +20,22 @@ def test_health():
     assert response.json()["status"] == "ok"
 
 
-def test_upload_pdf_success():
+@pytest.fixture()
+def tmp_upload_dir(tmp_path, monkeypatch):
+    """Redirect uploads to a temporary directory so tests leave no artifacts."""
+    monkeypatch.setattr(main_module, "UPLOAD_DIR", str(tmp_path))
+    os.makedirs(str(tmp_path), exist_ok=True)
+    return tmp_path
+
+
+def test_upload_pdf_success(tmp_upload_dir):
     fake_pdf = io.BytesIO(b"%PDF-1.4 fake content")
-    
+
     response = client.post(
         "/upload-cv",
         files={"file": ("test.pdf", fake_pdf, "application/pdf")}
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["original_filename"] == "test.pdf"
