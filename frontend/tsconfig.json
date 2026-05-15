@@ -6,6 +6,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "ignoreDeprecations": "6.0",
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -20,6 +21,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    "types": ["vite/client"],
 
     /* Linting */
     "strict": true,
@@ -27,6 +29,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "src/vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
