@@ -64,6 +64,77 @@ Architecture initiale trop grosse. Besoin de simplifier pour avoir juste le mini
 
 ---
 
+### [2026-05-15] - Implémentation Issue #2: Upload PDF + Endpoint backend
+
+**Contexte :**
+Besoin d'implémenter le composant d'upload PDF côté frontend et l'endpoint correspondant au backend.
+
+**Décision :**
+
+- **Frontend:**
+  - Composant `CVUpload.tsx` réutilisable avec gestion d'état
+  - Validation côté client: type MIME + taille fichier (10 MB max)
+  - Messages d'erreur/succès avec UX claire
+  - Utilisation de Tailwind CSS v4 via @tailwindcss/postcss
+  - Intégration dans App.tsx avec état global
+
+- **Backend:**
+  - Endpoint POST `/upload-cv` qui valide et stocke le PDF
+  - Validation: type MIME, taille, extension
+  - Dossier `uploads/` pour stocker les fichiers
+  - Réponses JSON structurées (201 success, 400 bad request, 500 server error)
+
+**Raison :**
+
+- Validation côté client pour UX rapide
+- Validation côté serveur pour sécurité
+- Tailwind CSS pour un design cohérent sans CSS brut
+- Composant isolé pour réutilisabilité
+
+**Impact :**
+
+- ✅ Upload PDF fonctionnel
+- ✅ Gestion d'erreurs utilisateur (fichier manquant/invalide)
+- ✅ Messages de feedback clairs (vert succès, rouge erreur)
+- ✅ Architecture prête pour extraction texte PDF (issue #3)
+- 📝 Fichiers créés: CVUpload.tsx, updated main.py, updated App.tsx
+- 🎨 Interface stylisée avec Tailwind + custom CSS variables
+
+---
+
+### [2026-05-15] - Migration vers shadcn/ui pour design minimaliste et beau
+
+**Contexte :**
+L'interface était fonctionnelle mais utilisait des styles inline. Besoin d'un design system cohérent et minimaliste.
+
+**Décision :**
+
+- Créer manuellement les composants shadcn (Button, Card, Alert, Input)
+- Utiliser Radix UI + Tailwind CSS + Lucide Icons
+- Implémenter les variantes shadcn (default, destructive, success, outline)
+- Intégrer les composants dans CVUpload et App.tsx
+- Configurer les aliases TypeScript (@/_ -> src/_)
+
+**Raison :**
+
+- shadcn/ui est le gold standard pour design minimaliste + React
+- Composants isolés et réutilisables
+- Lucide Icons pour les icônes cohérentes
+- Pas de CLI complications, création manuelle simple
+
+**Impact :**
+
+- ✅ Interface minimaliste et professionnelle
+- ✅ Design system cohérent à travers l'app
+- ✅ Alerts avec variantes (success, destructive)
+- ✅ Boutons shadcn avec hover effects clairs
+- ✅ Cards avec borders et ombres subtiles
+- 🎨 Palette slate moderne
+- 📝 Fichiers créés: button.tsx, card.tsx, alert.tsx, input.tsx, utils.ts
+- 🔧 Configuré path aliases et Vite
+
+---
+
 ## ⚠️ Règles importantes
 
 - Toute décision importante DOIT être ajoutée ici
@@ -89,6 +160,7 @@ Avant toute génération de code :
 - ✅ Backend FastAPI démarrable
 - ✅ Frontend React démarrable
 - ✅ Docker setup opérationnel
-- 🔄 Prêt pour development des features (issues #2+)
+- ✅ Issue #2 complètement: Upload PDF + endpoint backend + gestion erreurs (2026-05-15)
+- 🔄 Prêt pour issue #3: Extraction texte PDF
 
 ---
