@@ -5,6 +5,8 @@ import os
 import uuid
 import re
 
+from services.pdf_text_extractor import extract_text_from_pdf_bytes
+
 app = FastAPI(title="JobAlign API", version="0.1.0")
 
 app.add_middleware(
@@ -96,6 +98,48 @@ async def upload_cv(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors du traitement du fichier: {str(e)}"
+        )
+
+
+@app.post("/extract-cv-text")
+async def extract_cv_text(file: UploadFile = File(...)):
+    """Extrait et normalise le texte d'un CV PDF."""
+
+    if not file:
+        raise HTTPException(status_code=400, detail="Aucun fichier fourni.")
+
+    if file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Type de fichier invalide. Attendu: PDF, reçu: {file.content_type}"
+        )
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Le fichier doit avoir une extension .pdf"
+        )
+
+    try:
+        pdf_bytes = await file.read()
+        extracted_text = extract_text_from_pdf_bytes(pdf_bytes)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Texte extrait avec succès",
+                "filename": file.filename,
+                "text": extracted_text,
+            },
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de l'extraction du texte: {str(e)}"
         )
 
 if __name__ == "__main__":

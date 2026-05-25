@@ -37,6 +37,55 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-25] - Réparation du frontend et branchement upload vers extraction
+
+**Contexte :**
+Des fragments de JSX/TypeScript avaient cassé `App.tsx` et `CVUpload.tsx`, empêchant la compilation du frontend.
+
+**Décision :**
+
+- Réécriture propre des deux composants front concernés
+- Conservation du flux unique: upload du CV puis extraction texte via le backend
+- Affichage du texte extrait dans l'UI locale
+
+**Raison :**
+
+- Rétablir un frontend compilable rapidement
+- Garder un parcours de test simple pour vérifier l'extraction
+- Éviter de multiplier les boutons ou chemins de test
+
+**Impact :**
+
+- ✅ Erreurs de compilation frontend corrigées
+- ✅ Upload PDF déclenche désormais l'extraction texte
+- ✅ Le texte extrait est visible dans l'interface
+
+### [2026-05-25] - Extraction texte PDF connectée au flux d'upload
+
+**Contexte :**
+Besoin de pouvoir tester directement depuis le frontend l'extraction du texte brut d'un CV PDF, avec nettoyage de base et erreur explicite si le PDF est illisible ou vide.
+
+**Décision :**
+
+- Ajout d'un service backend dédié à l'extraction texte PDF
+- Normalisation du texte extrait: espaces compressés, lignes vides supprimées
+- Route backend `POST /extract-cv-text`
+- Frontend branché pour enchaîner upload puis extraction sur le même fichier
+- Affichage du texte extrait dans l'interface de test locale
+
+**Raison :**
+
+- Permettre un test de bout en bout depuis l'UI
+- Garder l'extraction local-first et explicite
+- Préparer la suite du pipeline sans dépendre d'un traitement manuel
+
+**Impact :**
+
+- ✅ Upload PDF déclenche désormais aussi l'extraction
+- ✅ Le texte extrait est visible directement dans le frontend
+- ✅ Les erreurs d'extraction sont renvoyées clairement au client
+- 📝 Nouveau service: `backend/services/pdf_text_extractor.py`
+
 ### [2026-05-14] - Initialisation et simplification de l'architecture
 
 **Contexte :**
