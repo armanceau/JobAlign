@@ -32,6 +32,21 @@ def test_extract_text_from_pdf_bytes_success(monkeypatch):
     assert result == "Bonjour monde\nDeuxieme ligne"
 
 
+def test_extract_text_from_pdf_bytes_recovers_spaced_letters(monkeypatch):
+    monkeypatch.setattr(
+        extractor,
+        "PdfReader",
+        lambda buffer: FakePdfReader([
+            FakePage("D é v e l o p p e u r  f u l l - s t a c k"),
+            FakePage("A R T H U R"),
+        ]),
+    )
+
+    result = extractor.extract_text_from_pdf_bytes(b"%PDF-1.4 fake content")
+
+    assert result == "Développeur full-stack\nARTHUR"
+
+
 def test_extract_text_from_pdf_bytes_empty_payload():
     with pytest.raises(HTTPException) as exc_info:
         extractor.extract_text_from_pdf_bytes(b"")

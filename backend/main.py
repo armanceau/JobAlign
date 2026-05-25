@@ -1,11 +1,13 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 import os
 import uuid
 import re
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
+from nlp.cv_offer_analyzer import analyze_cv_and_offer
 
 app = FastAPI(title="JobAlign API", version="0.1.0")
 
@@ -23,6 +25,11 @@ ALLOWED_CONTENT_TYPES = ["application/pdf"]
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+class NLPAnalysisRequest(BaseModel):
+    cv_text: str = Field(..., min_length=1)
+    offer_text: str = Field(..., min_length=1)
 
 @app.get("/")
 async def root():
@@ -140,6 +147,23 @@ async def extract_cv_text(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors de l'extraction du texte: {str(e)}"
+        )
+
+
+@app.post("/nlp/analyze")
+async def analyze_nlp(payload: NLPAnalysisRequest):
+    """Analyse le CV et l'offre pour extraire les compétences, diplômes et expériences."""
+
+    try:
+        return JSONResponse(
+            status_code=200,
+            content=analyze_cv_and_offer(payload.cv_text, payload.offer_text),
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de l'analyse NLP: {str(e)}"
         )
 
 if __name__ == "__main__":
