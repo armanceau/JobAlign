@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { CVUpload } from "@/components/CVUpload";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,10 +19,15 @@ interface AnalysisResults {
 function App(): React.ReactElement {
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [uploadedCV, setUploadedCV] = useState<string | null>(null);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
   const [jobOffer, setJobOffer] = useState<string>("");
 
   const handleUploadSuccess = (fileName: string) => {
     setUploadedCV(fileName);
+  };
+
+  const handleExtractSuccess = (text: string) => {
+    setExtractedText(text);
   };
 
   const handleAnalyze = () => {
@@ -30,7 +35,7 @@ function App(): React.ReactElement {
       alert("Veuillez remplir tous les champs");
       return;
     }
-    // TODO: Appeler l'API pour l'analyse
+
     setResults({ filename: uploadedCV });
   };
 
@@ -54,7 +59,10 @@ function App(): React.ReactElement {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <CVUpload onUploadSuccess={handleUploadSuccess} />
+                <CVUpload
+                  onUploadSuccess={handleUploadSuccess}
+                  onExtractSuccess={handleExtractSuccess}
+                />
                 {uploadedCV && (
                   <Alert className="mt-6">
                     <CheckCircle className="h-4 w-4" />
@@ -63,6 +71,17 @@ function App(): React.ReactElement {
                       <span className="font-medium">{uploadedCV}</span>
                     </AlertDescription>
                   </Alert>
+                )}
+                {extractedText && (
+                  <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-900 mb-3">
+                      <CheckCircle className="h-4 w-4" />
+                      Texte extrait
+                    </div>
+                    <pre className="whitespace-pre-wrap text-sm text-slate-700 max-h-64 overflow-y-auto">
+                      {extractedText}
+                    </pre>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -82,7 +101,7 @@ function App(): React.ReactElement {
                   className="w-full h-40 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-0 font-mono text-sm resize-none"
                 />
                 <Button
-                  variant={"primary"}
+                  variant="primary"
                   onClick={handleAnalyze}
                   disabled={!uploadedCV}
                   size="lg"
@@ -109,6 +128,7 @@ function App(): React.ReactElement {
                 onClick={() => {
                   setResults(null);
                   setUploadedCV(null);
+                  setExtractedText(null);
                   setJobOffer("");
                 }}
                 variant="outline"

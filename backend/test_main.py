@@ -4,6 +4,7 @@ import main as main_module
 import io
 import os
 import pytest
+from pypdf import PdfWriter
 
 client = TestClient(app)
 
@@ -75,3 +76,49 @@ def test_upload_too_large():
 
     assert response.status_code == 400
     assert "dépasse la limite" in response.json()["detail"]
+
+
+def build_pdf_bytes(text: str) -> io.BytesIO:
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=300, height=300)
+    page.extract_text = lambda: text
+
+    buffer = io.BytesIO()
+    writer.write(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+def test_extract_pdf_text_success():
+    fake_pdf = build_pdf_bytes("  Bonjour   monde\n\nDeuxieme   ligne  ")
+
+    response = client.post(
+        "/extract-cv-text",
+        files={"file": ("cv.pdf", fake_pdf, "application/pdf")}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["text"] == "Bonjour monde\nDeuxieme ligne"
+
+
+def test_extract_pdf_text_invalid_file_type():
+    fake_txt = io.BytesIO(b"hello")
+
+    response = client.post(
+        "/extract-cv-text",
+        files={"file": ("cv.txt", fake_txt, "text/plain")}
+    )
+
+    assert response.status_code == 400
+    assert "Type de fichier invalide" in response.json()["detail"]
+
+
+def test_extract_pdf_text_empty_payload():
+    response = client.post(
+        "/extract-cv-text",
+        files={"file": ("cv.pdf", io.BytesIO(b""), "application/pdf")}
+    )
+
+    assert response.status_code == 400
+    assert "vide" in response.json()["detail"]
