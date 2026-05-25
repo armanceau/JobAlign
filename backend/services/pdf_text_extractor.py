@@ -5,11 +5,35 @@ from fastapi import HTTPException
 from pypdf import PdfReader
 
 
-def _normalize_text(text: str) -> str:
-    """Collapse repeated whitespace and remove empty lines."""
+SPACED_LETTER_PATTERN = re.compile(
+    r"(?<!\S)(?:[A-Za-zÀ-ÖØ-öø-ÿ]\s+){2,}[A-Za-zÀ-ÖØ-öø-ÿ](?=[\s\.,;:!?\"')\]]|$)"
+)
 
-    lines = [re.sub(r"\s+", " ", line).strip() for line in text.splitlines()]
-    lines = [line for line in lines if line]
+
+def _collapse_spaced_letters(text: str) -> str:
+    """Join words that were extracted as spaced letters, e.g. `D é v e l o p p e u r`."""
+
+    def compact(match: re.Match[str]) -> str:
+        return match.group(0).replace(" ", "")
+
+    return SPACED_LETTER_PATTERN.sub(compact, text)
+
+
+def _normalize_text(text: str) -> str:
+    """Collapse repeated whitespace, remove empty lines and fix spaced-letter OCR output."""
+
+    lines = []
+    for line in text.splitlines():
+        cleaned_chunks = []
+        for chunk in re.split(r"\s{2,}", line):
+            chunk = _collapse_spaced_letters(chunk)
+            chunk = re.sub(r"\s*[-–—]\s*", "-", chunk)
+            chunk = re.sub(r"\s+", " ", chunk).strip()
+            if chunk:
+                cleaned_chunks.append(chunk)
+
+        if cleaned_chunks:
+            lines.append(" ".join(cleaned_chunks))
     return "\n".join(lines)
 
 

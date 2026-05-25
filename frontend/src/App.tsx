@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { CVUpload } from "@/components/CVUpload";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,11 +17,43 @@ interface AnalysisResults {
   score?: number;
 }
 
+interface NlpCategoryResult {
+  hard_skills: string[];
+  soft_skills: string[];
+  diplomas: string[];
+  experiences: Array<{
+    text: string;
+    years?: number;
+  }>;
+  entities: Array<{
+    label: string;
+    text: string;
+    start: number;
+    end: number;
+  }>;
+}
+
+interface NlpAnalysisResponse {
+  cv: NlpCategoryResult;
+  offer: NlpCategoryResult;
+  summary: {
+    shared_hard_skills: string[];
+    shared_soft_skills: string[];
+    shared_diplomas: string[];
+  };
+}
+
 function App(): React.ReactElement {
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [uploadedCV, setUploadedCV] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [jobOffer, setJobOffer] = useState<string>("");
+  const [analysisResult, setAnalysisResult] =
+    useState<NlpAnalysisResponse | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
   const handleUploadSuccess = (fileName: string) => {
     setUploadedCV(fileName);
@@ -30,13 +63,65 @@ function App(): React.ReactElement {
     setExtractedText(text);
   };
 
-  const handleAnalyze = () => {
-    if (!uploadedCV || !jobOffer.trim()) {
-      alert("Veuillez remplir tous les champs");
+  const handleAnalyze = async () => {
+    if (!extractedText || !jobOffer.trim()) {
+      setAnalysisError(
+        "Veuillez d'abord charger un CV et coller une offre d'emploi.",
+      );
       return;
     }
 
-    setResults({ filename: uploadedCV });
+    setAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const response = await axios.post<NlpAnalysisResponse>(
+        `${API_URL}/nlp/analyze`,
+        {
+          cv_text: extractedText,
+          offer_text: jobOffer,
+        },
+      );
+
+      setAnalysisResult(response.data);
+      setResults({ filename: uploadedCV ?? undefined });
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data?.detail) {
+        setAnalysisError(error.response.data.detail);
+      } else {
+        setAnalysisError("Erreur lors de l'analyse NLP. Veuillez réessayer.");
+      }
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const resetAnalysis = () => {
+    setResults(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setUploadedCV(null);
+    setExtractedText(null);
+    setJobOffer("");
+  };
+
+  const renderList = (items: string[]) => {
+    if (items.length === 0) {
+      return <p className="text-sm text-slate-500">Aucun élément détecté</p>;
+    }
+
+    return (
+      <ul className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <li
+            key={item}
+            className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
+          >
+            {item}
+          </li>
+        ))}
+      </ul>
+    );
   };
 
   return (
@@ -103,12 +188,17 @@ function App(): React.ReactElement {
                 <Button
                   variant="primary"
                   onClick={handleAnalyze}
-                  disabled={!uploadedCV}
+                  disabled={!uploadedCV || !extractedText || analyzing}
                   size="lg"
                   className="w-full"
                 >
-                  Analyser le CV
+                  {analyzing ? "Analyse en cours..." : "Analyser le CV"}
                 </Button>
+                {analysisError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{analysisError}</AlertDescription>
+                  </Alert>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -117,20 +207,88 @@ function App(): React.ReactElement {
             <CardHeader>
               <CardTitle>Résultats de l'analyse</CardTitle>
               <CardDescription>
-                Les résultats seront affichés ici
+                Catégories extraites depuis le CV et l'offre
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-slate-600">
-                À venir dans les prochaines étapes...
-              </p>
+            <CardContent className="space-y-6">
+              {analysisResult ? (
+                <>
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Hard skills communes
+                    </h3>
+                    {renderList(analysisResult.summary.shared_hard_skills)}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Soft skills communes
+                    </h3>
+                    {renderList(analysisResult.summary.shared_soft_skills)}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Diplômes communs
+                    </h3>
+                    {renderList(analysisResult.summary.shared_diplomas)}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        CV
+                      </h3>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Hard skills
+                        </p>
+                        {renderList(analysisResult.cv.hard_skills)}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Soft skills
+                        </p>
+                        {renderList(analysisResult.cv.soft_skills)}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Diplômes
+                        </p>
+                        {renderList(analysisResult.cv.diplomas)}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Offre
+                      </h3>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Hard skills
+                        </p>
+                        {renderList(analysisResult.offer.hard_skills)}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Soft skills
+                        </p>
+                        {renderList(analysisResult.offer.soft_skills)}
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Diplômes
+                        </p>
+                        {renderList(analysisResult.offer.diplomas)}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-slate-600">Aucune analyse disponible.</p>
+              )}
               <Button
-                onClick={() => {
-                  setResults(null);
-                  setUploadedCV(null);
-                  setExtractedText(null);
-                  setJobOffer("");
-                }}
+                onClick={resetAnalysis}
                 variant="outline"
                 className="w-full"
               >

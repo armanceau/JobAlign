@@ -37,6 +37,55 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-25] - Branchement frontend vers l'analyse NLP
+
+**Contexte :**
+Le flux frontend s'arrêtait à l'extraction texte, sans appeler l'endpoint NLP du backend.
+
+**Décision :**
+
+- Brancher le bouton d'analyse du frontend sur `POST /nlp/analyze`
+- Envoyer le texte extrait du CV et le texte de l'offre
+- Afficher dans l'UI les hard skills, soft skills et diplômes extraits pour le CV et l'offre
+
+**Raison :**
+
+- Rendre le flux testable en bout en bout depuis le navigateur
+- Vérifier immédiatement la valeur fonctionnelle de l'extraction NLP
+- Garder une réponse visible et exploitable côté UI
+
+**Impact :**
+
+- ✅ L'analyse NLP est maintenant déclenchable depuis le frontend
+- ✅ Les résultats structurés s'affichent dans l'interface
+- ✅ Le flux upload → extraction → analyse est testable localement
+
+### [2026-05-25] - Pipeline NLP spaCy pour CV et offre
+
+**Contexte :**
+Besoin d'extraire automatiquement les hard skills, soft skills, expériences et diplômes depuis le texte du CV et de l'offre.
+
+**Décision :**
+
+- Ajout d'un module isolé dans `backend/nlp`
+- Pipeline spaCy local basé sur `spacy.blank("fr")` + `PhraseMatcher` + extraction par règles
+- Endpoint backend `POST /nlp/analyze` pour analyser CV et offre ensemble
+- Réponse structurée par catégories et synthèse des éléments communs
+- Tests unitaires dédiés au pipeline et à l'API
+
+**Raison :**
+
+- Garder une implémentation locale, simple et testable
+- Éviter la dépendance à un modèle spaCy lourd à télécharger
+- Fournir une structure de sortie exploitable pour la suite du matching
+
+**Impact :**
+
+- ✅ Entités extraites sur CV et offre
+- ✅ Réponse structurée par catégories
+- ✅ Composant NLP isolé dans `backend/nlp`
+- ✅ Tests backend validés avec succès
+
 ### [2026-05-25] - Réparation du frontend et branchement upload vers extraction
 
 **Contexte :**
