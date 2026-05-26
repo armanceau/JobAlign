@@ -27,10 +27,40 @@ interface AnalysisResults {
   score?: number;
 }
 
+type MatchingCategoryKey =
+  | "technical_skills"
+  | "experience"
+  | "education"
+  | "soft_skills"
+  | "language";
+
+interface MatchingCategoryResult {
+  score_percent: number;
+  weight: number;
+  required_count: number;
+  matched_count: number;
+  required_items: string[];
+  matched_items: string[];
+  missing_items: string[];
+  justification: string;
+  required_years?: number;
+  cv_years?: number;
+  cv_rank?: number;
+  required_rank?: number;
+}
+
+interface MatchingResponse {
+  method: string;
+  global_score_percent: number;
+  subscores: Record<MatchingCategoryKey, MatchingCategoryResult>;
+  justifications: string[];
+}
+
 interface NlpCategoryResult {
   hard_skills: string[];
   soft_skills: string[];
   diplomas: string[];
+  languages: string[];
   experiences: Array<{
     text: string;
     years?: number;
@@ -50,12 +80,9 @@ interface NlpAnalysisResponse {
     shared_hard_skills: string[];
     shared_soft_skills: string[];
     shared_diplomas: string[];
+    shared_languages: string[];
   };
-  semantic_matching: {
-    model: string;
-    cosine_similarity: number;
-    similarity_percent: number;
-  };
+  matching: MatchingResponse;
 }
 
 function App(): React.ReactElement {
@@ -122,7 +149,7 @@ function App(): React.ReactElement {
 
   const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 
-  const getSemanticScoreTone = (percent: number) => {
+  const getScoreTone = (percent: number) => {
     if (percent >= 75) {
       return {
         label: "Excellent alignement",
@@ -144,6 +171,29 @@ function App(): React.ReactElement {
       badgeClass: "text-rose-700 bg-rose-50 border-rose-200",
       barClass: "bg-rose-500",
     };
+  };
+
+  const matchingCategoryOrder: Array<{
+    key: MatchingCategoryKey;
+    label: string;
+  }> = [
+    { key: "technical_skills", label: "Compétences techniques" },
+    { key: "experience", label: "Expérience" },
+    { key: "education", label: "Formation" },
+    { key: "soft_skills", label: "Soft skills" },
+    { key: "language", label: "Langage" },
+  ];
+
+  const getSubscoreTone = (percent: number) => {
+    if (percent >= 80) {
+      return "text-emerald-700 bg-emerald-50 border-emerald-200";
+    }
+
+    if (percent >= 50) {
+      return "text-amber-700 bg-amber-50 border-amber-200";
+    }
+
+    return "text-rose-700 bg-rose-50 border-rose-200";
   };
 
   const renderList = (items: string[]) => {
@@ -258,20 +308,25 @@ function App(): React.ReactElement {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900">
-                          Matching sémantique CV/offre
+                          Matching déterministe CV/offre
                         </h3>
                         <p className="text-xs text-slate-500">
-                          Modèle: {analysisResult.semantic_matching.model}
+                          Méthode: {analysisResult.matching.method}
                         </p>
                       </div>
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-medium ${getSemanticScoreTone(clampPercent(analysisResult.semantic_matching.similarity_percent)).badgeClass}`}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                          getScoreTone(
+                            clampPercent(
+                              analysisResult.matching.global_score_percent,
+                            ),
+                          ).badgeClass
+                        }`}
                       >
                         {
-                          getSemanticScoreTone(
+                          getScoreTone(
                             clampPercent(
-                              analysisResult.semantic_matching
-                                .similarity_percent,
+                              analysisResult.matching.global_score_percent,
                             ),
                           ).label
                         }
@@ -282,24 +337,41 @@ function App(): React.ReactElement {
                       <div className="flex items-baseline justify-between">
                         <p className="text-2xl font-semibold text-slate-900">
                           {clampPercent(
-                            analysisResult.semantic_matching.similarity_percent,
+                            analysisResult.matching.global_score_percent,
                           ).toFixed(2)}
                           %
                         </p>
                         <p className="text-xs text-slate-500">
-                          cosinus:{" "}
-                          {analysisResult.semantic_matching.cosine_similarity.toFixed(
-                            4,
-                          )}
+                          Détail par catégorie
                         </p>
                       </div>
-                      <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-500 ${getSemanticScoreTone(clampPercent(analysisResult.semantic_matching.similarity_percent)).barClass}`}
-                          style={{
-                            width: `${clampPercent(analysisResult.semantic_matching.similarity_percent)}%`,
-                          }}
-                        />
+                      <div className="space-y-2">
+                        {matchingCategoryOrder.map((cat) => {
+                          const sub =
+                            analysisResult.matching.subscores[cat.key];
+                          return (
+                            <div
+                              key={cat.key}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-slate-900">
+                                  {cat.label}
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                  {sub.justification}
+                                </div>
+                              </div>
+                              <div className="ml-4 text-right">
+                                <div
+                                  className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
+                                >
+                                  {sub.score_percent.toFixed(2)}%
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     {/* Radar chart comparing CV vs Offer skills built from analysisResult */}
