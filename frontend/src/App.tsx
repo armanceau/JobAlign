@@ -12,6 +12,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
 import RadarChartUI from "@/components/ui/radarChart";
+import Stepper from "./components/Stepper";
 
 interface AnalysisResults {
   filename?: string;
@@ -77,6 +78,7 @@ interface NlpAnalysisResponse {
 }
 
 function App(): React.ReactElement {
+  const [currentStep, setCurrentStep] = useState<number>(1);
   const [results, setResults] = useState<AnalysisResults | null>(null);
   const [uploadedCV, setUploadedCV] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
@@ -118,6 +120,7 @@ function App(): React.ReactElement {
 
       setAnalysisResult(response.data);
       setResults({ filename: uploadedCV ?? undefined });
+      setCurrentStep(3);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.data?.detail) {
         setAnalysisError(error.response.data.detail);
@@ -136,6 +139,7 @@ function App(): React.ReactElement {
     setUploadedCV(null);
     setExtractedText(null);
     setJobOffer("");
+    setCurrentStep(1);
   };
 
   const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
@@ -216,43 +220,53 @@ function App(): React.ReactElement {
           </p>
         </div>
 
-        {!results ? (
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Étape 1: Télécharger votre CV</CardTitle>
-                <CardDescription>
-                  Importez votre CV au format PDF pour l'analyse
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CVUpload
-                  onUploadSuccess={handleUploadSuccess}
-                  onExtractSuccess={handleExtractSuccess}
-                />
-                {uploadedCV && (
-                  <Alert className="mt-6">
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      CV chargé:{" "}
-                      <span className="font-medium">{uploadedCV}</span>
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {extractedText && (
-                  <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-900 mb-3">
-                      <CheckCircle className="h-4 w-4" />
-                      Texte extrait
-                    </div>
-                    <pre className="whitespace-pre-wrap text-sm text-slate-700 max-h-64 overflow-y-auto">
-                      {extractedText}
-                    </pre>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <>
+          <div className="mb-6">
+            <Stepper
+              steps={["CV", "Offre", "Résultats"]}
+              current={currentStep}
+              onStepClick={(s) => setCurrentStep(s)}
+            />
+          </div>
 
+          {currentStep === 1 && (
+            <div className="space-y-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Étape 1: Télécharger votre CV</CardTitle>
+                  <CardDescription>
+                    Importez votre CV au format PDF pour l'analyse
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CVUpload
+                    onUploadSuccess={handleUploadSuccess}
+                    onExtractSuccess={handleExtractSuccess}
+                  />
+                  {uploadedCV && (
+                    <Alert className="mt-6">
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        CV chargé:{" "}
+                        <span className="font-medium">{uploadedCV}</span>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+                <div className="flex gap-2 p-4">
+                  <div className="flex-1" />
+                  <Button
+                    onClick={() => setCurrentStep(2)}
+                    disabled={!uploadedCV || !extractedText}
+                  >
+                    Suivant →
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {currentStep === 2 && (
             <Card>
               <CardHeader>
                 <CardTitle>Étape 2: Collez l'offre d'emploi</CardTitle>
@@ -267,15 +281,20 @@ function App(): React.ReactElement {
                   onChange={(e) => setJobOffer(e.target.value)}
                   className="w-full h-40 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-0 font-mono text-sm resize-none"
                 />
-                <Button
-                  variant="primary"
-                  onClick={handleAnalyze}
-                  disabled={!uploadedCV || !extractedText || analyzing}
-                  size="lg"
-                  className="w-full"
-                >
-                  {analyzing ? "Analyse en cours..." : "Analyser le CV"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setCurrentStep(1)}>
+                    ← Retour
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleAnalyze}
+                    disabled={!uploadedCV || !extractedText || analyzing}
+                    size="lg"
+                    className="ml-auto"
+                  >
+                    {analyzing ? "Analyse en cours..." : "Analyser le CV"}
+                  </Button>
+                </div>
                 {analysisError && (
                   <Alert variant="destructive">
                     <AlertDescription>{analysisError}</AlertDescription>
@@ -283,46 +302,47 @@ function App(): React.ReactElement {
                 )}
               </CardContent>
             </Card>
-          </div>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Résultats de l'analyse</CardTitle>
-              <CardDescription>
-                Catégories extraites depuis le CV et l'offre
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {analysisResult ? (
-                <>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">
-                          Matching déterministe CV/offre
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Méthode: {analysisResult.matching.method}
-                        </p>
+          )}
+
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Résultats de l'analyse</CardTitle>
+                <CardDescription>
+                  Catégories extraites depuis le CV et l'offre
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {analysisResult ? (
+                  <>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-900">
+                            Matching déterministe CV/offre
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            Méthode: {analysisResult.matching.method}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                            getScoreTone(
+                              clampPercent(
+                                analysisResult.matching.global_score_percent,
+                              ),
+                            ).badgeClass
+                          }`}
+                        >
+                          {
+                            getScoreTone(
+                              clampPercent(
+                                analysisResult.matching.global_score_percent,
+                              ),
+                            ).label
+                          }
+                        </span>
                       </div>
-                      <span
-                        className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                          getScoreTone(
-                            clampPercent(
-                              analysisResult.matching.global_score_percent,
-                            ),
-                          ).badgeClass
-                        }`}
-                      >
-                        {
-                          getScoreTone(
-                            clampPercent(
-                              analysisResult.matching.global_score_percent,
-                            ),
-                          ).label
-                        }
-                      </span>
-                    </div>
 
                         <div className="space-y-1">
                       <div className="flex items-baseline justify-between">
@@ -371,90 +391,96 @@ function App(): React.ReactElement {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Hard skills communes
-                    </h3>
-                    {renderList(analysisResult.summary.shared_hard_skills)}
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Soft skills communes
-                    </h3>
-                    {renderList(analysisResult.summary.shared_soft_skills)}
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                      Diplômes communs
-                    </h3>
-                    {renderList(analysisResult.summary.shared_diplomas)}
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                    <div className="space-y-2">
                       <h3 className="text-sm font-semibold text-slate-900">
-                        CV
+                        Hard skills communes
                       </h3>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Hard skills
-                        </p>
-                        {renderList(analysisResult.cv.hard_skills)}
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Soft skills
-                        </p>
-                        {renderList(analysisResult.cv.soft_skills)}
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Diplômes
-                        </p>
-                        {renderList(analysisResult.cv.diplomas)}
-                      </div>
+                      {renderList(analysisResult.summary.shared_hard_skills)}
                     </div>
 
-                    <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                    <div className="space-y-2">
                       <h3 className="text-sm font-semibold text-slate-900">
-                        Offre
+                        Soft skills communes
                       </h3>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Hard skills
-                        </p>
-                        {renderList(analysisResult.offer.hard_skills)}
+                      {renderList(analysisResult.summary.shared_soft_skills)}
+                    </div>
+
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold text-slate-900">
+                        Diplômes communs
+                      </h3>
+                      {renderList(analysisResult.summary.shared_diplomas)}
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                        <h3 className="text-sm font-semibold text-slate-900">
+                          CV
+                        </h3>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Hard skills
+                          </p>
+                          {renderList(analysisResult.cv.hard_skills)}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Soft skills
+                          </p>
+                          {renderList(analysisResult.cv.soft_skills)}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Diplômes
+                          </p>
+                          {renderList(analysisResult.cv.diplomas)}
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Soft skills
-                        </p>
-                        {renderList(analysisResult.offer.soft_skills)}
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-wide text-slate-500">
-                          Diplômes
-                        </p>
-                        {renderList(analysisResult.offer.diplomas)}
+
+                      <div className="space-y-3 rounded-lg border border-slate-200 p-4">
+                        <h3 className="text-sm font-semibold text-slate-900">
+                          Offre
+                        </h3>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Hard skills
+                          </p>
+                          {renderList(analysisResult.offer.hard_skills)}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Soft skills
+                          </p>
+                          {renderList(analysisResult.offer.soft_skills)}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Diplômes
+                          </p>
+                          {renderList(analysisResult.offer.diplomas)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-slate-600">Aucune analyse disponible.</p>
-              )}
-              <Button
-                onClick={resetAnalysis}
-                variant="outline"
-                className="w-full"
-              >
-                ← Retour
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+                  </>
+                ) : (
+                  <p className="text-slate-600">Aucune analyse disponible.</p>
+                )}
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setCurrentStep(2)}>
+                    ← Retour
+                  </Button>
+                  <Button
+                    onClick={resetAnalysis}
+                    variant="outline"
+                    className="ml-auto"
+                  >
+                    Recommencer
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       </div>
     </div>
   );
