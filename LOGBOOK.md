@@ -37,6 +37,55 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-26] - Affichage frontend du score sémantique
+
+**Contexte :**
+Le backend renvoie désormais un bloc `semantic_matching` via `POST /nlp/analyze`, mais ce score n'était pas visible dans l'interface.
+
+**Décision :**
+
+- Mise à jour de `frontend/src/App.tsx` pour typer `semantic_matching`
+- Affichage d'un bloc dédié dans les résultats avec:
+  - pourcentage de similarité
+  - score cosinus
+  - jauge visuelle (barre de progression)
+  - niveau qualitatif (faible / moyen / excellent)
+
+**Raison :**
+
+- Rendre le matching sémantique exploitable immédiatement côté UX
+- Faciliter l'interprétation du score par l'utilisateur final
+
+**Impact :**
+
+- ✅ Le score sémantique backend est maintenant visible dans l'UI
+- ✅ La page résultats donne une lecture quantitative + qualitative de l'alignement CV/offre
+
+### [2026-05-26] - Matching sémantique CV/offre avec sentence-transformers
+
+**Contexte :**
+L'issue #5 demande un matching sémantique local entre le texte du CV et l'offre, basé sur des embeddings, avec un module backend dédié.
+
+**Décision :**
+
+- Ajout d'un module dédié `backend/services/semantic_matcher.py`
+- Génération des embeddings CV/offre via `sentence-transformers` (modèle multilingue configurable)
+- Calcul d'un score de similarité cosinus (`cosine_similarity` + `similarity_percent`)
+- Intégration du résultat dans la réponse de `POST /nlp/analyze` sous la clé `semantic_matching`
+- Ajout de tests unitaires dédiés avec mocks pour éviter dépendance réseau
+
+**Raison :**
+
+- Respecter l'approche local-first du projet
+- Fournir un score sémantique explicite et reproductible
+- Garder une séparation claire des responsabilités (NLP de règles vs matching embeddings)
+
+**Impact :**
+
+- ✅ Embeddings CV/offre générés via un service isolé
+- ✅ Score sémantique calculé et renvoyé par l'API
+- ✅ Couverture de tests sur le module et l'intégration endpoint
+
 ### [2026-05-25] - Branchement frontend vers l'analyse NLP
 
 **Contexte :**

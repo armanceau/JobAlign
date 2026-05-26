@@ -41,6 +41,11 @@ interface NlpAnalysisResponse {
     shared_soft_skills: string[];
     shared_diplomas: string[];
   };
+  semantic_matching: {
+    model: string;
+    cosine_similarity: number;
+    similarity_percent: number;
+  };
 }
 
 function App(): React.ReactElement {
@@ -103,6 +108,32 @@ function App(): React.ReactElement {
     setUploadedCV(null);
     setExtractedText(null);
     setJobOffer("");
+  };
+
+  const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+
+  const getSemanticScoreTone = (percent: number) => {
+    if (percent >= 75) {
+      return {
+        label: "Excellent alignement",
+        badgeClass: "text-emerald-700 bg-emerald-50 border-emerald-200",
+        barClass: "bg-emerald-500",
+      };
+    }
+
+    if (percent >= 55) {
+      return {
+        label: "Alignement moyen",
+        badgeClass: "text-amber-700 bg-amber-50 border-amber-200",
+        barClass: "bg-amber-500",
+      };
+    }
+
+    return {
+      label: "Alignement faible",
+      badgeClass: "text-rose-700 bg-rose-50 border-rose-200",
+      barClass: "bg-rose-500",
+    };
   };
 
   const renderList = (items: string[]) => {
@@ -213,6 +244,56 @@ function App(): React.ReactElement {
             <CardContent className="space-y-6">
               {analysisResult ? (
                 <>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900">
+                          Matching sémantique CV/offre
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Modèle: {analysisResult.semantic_matching.model}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-medium ${getSemanticScoreTone(clampPercent(analysisResult.semantic_matching.similarity_percent)).badgeClass}`}
+                      >
+                        {
+                          getSemanticScoreTone(
+                            clampPercent(
+                              analysisResult.semantic_matching
+                                .similarity_percent,
+                            ),
+                          ).label
+                        }
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-baseline justify-between">
+                        <p className="text-2xl font-semibold text-slate-900">
+                          {clampPercent(
+                            analysisResult.semantic_matching.similarity_percent,
+                          ).toFixed(2)}
+                          %
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          cosinus:{" "}
+                          {analysisResult.semantic_matching.cosine_similarity.toFixed(
+                            4,
+                          )}
+                        </p>
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${getSemanticScoreTone(clampPercent(analysisResult.semantic_matching.similarity_percent)).barClass}`}
+                          style={{
+                            width: `${clampPercent(analysisResult.semantic_matching.similarity_percent)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-slate-900">
                       Hard skills communes
