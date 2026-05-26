@@ -109,6 +109,7 @@ function App(): React.ReactElement {
   const [uploadedCV, setUploadedCV] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [jobOffer, setJobOffer] = useState<string>("");
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [analysisResult, setAnalysisResult] =
     useState<NlpAnalysisResponse | null>(null);
   const [recommendations, setRecommendations] =
@@ -142,6 +143,7 @@ function App(): React.ReactElement {
     setAnalysisError(null);
     setRecommendationsError(null);
     setRecommendations(null);
+    setShowAllSuggestions(false);
     setLoadingRecommendations(true);
 
     try {
@@ -199,6 +201,7 @@ function App(): React.ReactElement {
     setRecommendations(null);
     setAnalysisError(null);
     setRecommendationsError(null);
+    setShowAllSuggestions(false);
     setUploadedCV(null);
     setExtractedText(null);
     setJobOffer("");
@@ -355,6 +358,13 @@ function App(): React.ReactElement {
       return left.order - right.order;
     });
   };
+
+  const suggestionCards = buildSuggestionCards();
+  const visibleSuggestionCards = showAllSuggestions
+    ? suggestionCards
+    : suggestionCards.slice(0, 3);
+  const hiddenSuggestionCount =
+    suggestionCards.length - visibleSuggestionCards.length;
 
   return (
     <div className="min-h-screen bg-white py-16 px-4">
@@ -685,12 +695,12 @@ function App(): React.ReactElement {
                               </p>
 
                               <div className="space-y-3">
-                                {buildSuggestionCards().length === 0 ? (
+                                {suggestionCards.length === 0 ? (
                                   <p className="text-sm text-slate-500">
                                     Aucune suggestion exploitable détectée.
                                   </p>
                                 ) : (
-                                  buildSuggestionCards().map((card, index) => {
+                                  visibleSuggestionCards.map((card, index) => {
                                     const criticality = getCriticalityConfig(
                                       card.criticality,
                                     );
@@ -721,6 +731,25 @@ function App(): React.ReactElement {
                                       </div>
                                     );
                                   })
+                                )}
+
+                                {hiddenSuggestionCount > 0 && (
+                                  <div className="pt-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        setShowAllSuggestions((value) => !value)
+                                      }
+                                      className="px-0 text-xs text-slate-500 hover:text-slate-700"
+                                      aria-expanded={showAllSuggestions}
+                                    >
+                                      {showAllSuggestions
+                                        ? "Réduire les suggestions"
+                                        : `Afficher les ${hiddenSuggestionCount} suggestions restantes`}
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </>
