@@ -6,7 +6,8 @@ CV & Job Offer Analyzer with Local AI
 
 ### Requirements
 
-- Version python : **3.11** (⚠️ required)
+- Version python : **3.11**
+- Ollama with 1 model
 
 **Backend:**
 
@@ -23,6 +24,12 @@ python main.py
 cd frontend
 npm install
 npm run dev
+```
+
+**Ollama:**
+
+```bash
+ollama serve
 ```
 
 ## Structure
