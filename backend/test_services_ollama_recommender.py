@@ -30,7 +30,7 @@ class FakeAsyncClient:
 
     async def post(self, url, json):
         assert url.endswith("/api/chat")
-        assert json["model"] == ollama_recommender.OLLAMA_MODEL
+        assert json["model"] == "qwen3.5"
         return FakeResponse(
             {
                 "message": {
@@ -46,6 +46,7 @@ class FakeAsyncClient:
 
 
 def test_generate_local_recommendations_parses_ollama_json(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3.5")
     monkeypatch.setattr(ollama_recommender.httpx, "AsyncClient", FakeAsyncClient)
 
     analysis = {
@@ -61,11 +62,14 @@ def test_generate_local_recommendations_parses_ollama_json(monkeypatch):
 
     assert result["status"] == "ok"
     assert result["provider"] == "ollama"
+    assert result["model"] == "qwen3.5"
     assert result["missing_keywords"] == ["FastAPI", "Docker"]
     assert result["reformulations"][0]["after"] == "Résumé orienté produit"
 
 
 def test_generate_local_recommendations_falls_back_on_http_error(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3.5")
+
     class FailingAsyncClient(FakeAsyncClient):
         async def post(self, url, json):
             raise httpx.ConnectError(
@@ -87,4 +91,5 @@ def test_generate_local_recommendations_falls_back_on_http_error(monkeypatch):
     result = asyncio.run(ollama_recommender.generate_local_recommendations(analysis))
 
     assert result["status"] == "fallback"
+    assert result["model"] == "qwen3.5"
     assert "FastAPI" in result["missing_keywords"]

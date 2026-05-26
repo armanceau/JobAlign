@@ -6,11 +6,21 @@ import re
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
 
+
+load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5")
 OLLAMA_TIMEOUT_SECONDS = float(os.getenv("OLLAMA_TIMEOUT_SECONDS", "30"))
+
+
+def _get_ollama_model() -> str:
+    model = os.getenv("OLLAMA_MODEL")
+    if not model:
+        raise RuntimeError("OLLAMA_MODEL doit être défini dans le fichier .env")
+
+    return model
 
 
 def _truncate(text: str, limit: int = 4000) -> str:
@@ -105,7 +115,7 @@ def _build_fallback_recommendations(analysis: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "provider": "ollama",
-        "model": OLLAMA_MODEL,
+        "model": _get_ollama_model(),
         "status": "fallback",
         "summary": (
             "Suggestions générées localement à partir des écarts détectés entre le CV et l'offre."
@@ -151,7 +161,7 @@ def _normalize_recommendations(payload: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "provider": "ollama",
-        "model": str(payload.get("model", OLLAMA_MODEL)),
+        "model": str(payload.get("model", _get_ollama_model())),
         "status": str(payload.get("status", "ok")),
         "summary": str(payload.get("summary", "")) or "Recommandations locales générées par Ollama.",
         "missing_keywords": _unique_preserving_order([str(item) for item in missing_keywords if item]),
@@ -226,7 +236,7 @@ async def generate_local_recommendations(analysis: dict[str, Any]) -> dict[str, 
             response = await client.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
                 json={
-                    "model": OLLAMA_MODEL,
+                    "model": _get_ollama_model(),
                     "stream": False,
                     "format": "json",
                     "messages": [
@@ -251,5 +261,5 @@ async def generate_local_recommendations(analysis: dict[str, Any]) -> dict[str, 
 
     normalized["status"] = "ok"
     normalized["provider"] = "ollama"
-    normalized["model"] = OLLAMA_MODEL
+    normalized["model"] = _get_ollama_model()
     return normalized
