@@ -11,16 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
-import {
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  Tooltip,
-  Legend,
-} from "recharts";
+import RadarChartUI from "@/components/ui/radarChart";
 
 interface AnalysisResults {
   filename?: string;
@@ -217,7 +208,7 @@ function App(): React.ReactElement {
 
   return (
     <div className="min-h-screen bg-white py-16 px-4">
-      <div className="max-w-2xl mx-auto space-y-12">
+      <div className={results ? "max-w-4xl mx-auto space-y-12" : "max-w-2xl mx-auto space-y-12"}>
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-slate-900">JobAlign</h1>
           <p className="text-base text-slate-600">
@@ -374,43 +365,9 @@ function App(): React.ReactElement {
                         })}
                       </div>
                     </div>
-                    {/* Radar chart comparing CV vs Offer skills built from analysisResult */}
                     <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
                       <h4 className="text-sm font-semibold text-slate-900 mb-2">Comparaison radar des compétences</h4>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart
-                            cx="50%"
-                            cy="50%"
-                            outerRadius="80%"
-                            data={(() => {
-                              const cvSkills = new Set([
-                                ...(analysisResult.cv.hard_skills || []),
-                                ...(analysisResult.cv.soft_skills || []),
-                              ] as string[]);
-                              const offerSkills = new Set([
-                                ...(analysisResult.offer.hard_skills || []),
-                                ...(analysisResult.offer.soft_skills || []),
-                              ] as string[]);
-                              const all = Array.from(new Set([...cvSkills, ...offerSkills]));
-                              // limit to a reasonable number for the radar
-                              return all.slice(0, 12).map((s) => ({
-                                skill: s,
-                                user: cvSkills.has(s) ? 10 : 0,
-                                job: offerSkills.has(s) ? 10 : 0,
-                              }));
-                            })()}
-                          >
-                            <PolarGrid />
-                            <PolarAngleAxis dataKey="skill" />
-                            <PolarRadiusAxis angle={30} domain={[0, 10]} />
-                            <Tooltip />
-                            <Legend verticalAlign="top" height={24} />
-                            <Radar name="Utilisateur" dataKey="user" stroke="#2563eb" fill="#2563eb" fillOpacity={0.25} />
-                            <Radar name="Offre" dataKey="job" stroke="#ea580c" fill="#ea580c" fillOpacity={0.25} />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </div>
+                      <RadarChartUI analysisResult={analysisResult} />
                     </div>
                   </div>
 
