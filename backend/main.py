@@ -7,6 +7,7 @@ import uuid
 import re
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
+from services.semantic_matcher import compute_semantic_similarity
 from nlp.cv_offer_analyzer import analyze_cv_and_offer
 
 app = FastAPI(title="JobAlign API", version="0.1.0")
@@ -155,10 +156,13 @@ async def analyze_nlp(payload: NLPAnalysisRequest):
     """Analyse le CV et l'offre pour extraire les compétences, diplômes et expériences."""
 
     try:
-        return JSONResponse(
-            status_code=200,
-            content=analyze_cv_and_offer(payload.cv_text, payload.offer_text),
+        analysis = analyze_cv_and_offer(payload.cv_text, payload.offer_text)
+        analysis["semantic_matching"] = compute_semantic_similarity(
+            payload.cv_text,
+            payload.offer_text,
         )
+
+        return JSONResponse(status_code=200, content=analysis)
 
     except Exception as e:
         raise HTTPException(
