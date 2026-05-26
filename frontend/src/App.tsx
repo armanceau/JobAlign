@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Lightbulb,
 } from "lucide-react";
+import DonutChart from "@/components/ui/donutChart";
 import RadarChartUI from "@/components/ui/radarChart";
 import Stepper from "./components/Stepper";
 import { Spinner } from "./components/ui/spinner";
@@ -467,7 +468,7 @@ function App(): React.ReactElement {
               <CardContent className="space-y-6">
                 {analysisResult ? (
                   <>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    <div className="rounded-lg space-y-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <h3 className="text-sm font-semibold text-slate-900">
@@ -496,45 +497,54 @@ function App(): React.ReactElement {
                         </span>
                       </div>
 
-                      <div className="space-y-1">
-                        <div className="flex items-baseline justify-between">
-                          <p className="text-2xl font-semibold text-slate-900">
-                            {clampPercent(
+                      <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr] lg:items-center">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="mb-3 text-center">
+                            <p className="text-xs font-semibold uppercase tracking-wide ">
+                              Score global
+                            </p>
+                          </div>
+                          <DonutChart
+                            score={clampPercent(
                               analysisResult.matching.global_score_percent,
-                            ).toFixed(2)}
-                            %
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            Détail par catégorie
-                          </p>
+                            )}
+                          />
                         </div>
-                        <div className="space-y-2">
-                          {matchingCategoryOrder.map((cat) => {
-                            const sub =
-                              analysisResult.matching.subscores[cat.key];
-                            return (
-                              <div
-                                key={cat.key}
-                                className="flex items-center justify-between"
-                              >
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-slate-900">
-                                    {cat.label}
+
+                        <div className="space-y-1">
+                          <div className="flex items-baseline justify-between">
+                            <p className="text-xs text-slate-500">
+                              Détail par catégorie
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            {matchingCategoryOrder.map((cat) => {
+                              const sub =
+                                analysisResult.matching.subscores[cat.key];
+                              return (
+                                <div
+                                  key={cat.key}
+                                  className="flex items-center justify-between"
+                                >
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-slate-900">
+                                      {cat.label}
+                                    </div>
+                                    <div className="text-xs text-slate-500">
+                                      {sub.justification}
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-slate-500">
-                                    {sub.justification}
+                                  <div className="ml-4 text-right">
+                                    <div
+                                      className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
+                                    >
+                                      {sub.score_percent.toFixed(2)}%
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="ml-4 text-right">
-                                  <div
-                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
-                                  >
-                                    {sub.score_percent.toFixed(2)}%
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                       <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
