@@ -20,7 +20,6 @@ import {
 import DonutChart from "@/components/ui/donutChart";
 import RadarChartUI from "@/components/ui/radarChart";
 import Stepper from "./components/Stepper";
-import { Spinner } from "./components/ui/spinner";
 import { SpinnerBadge } from "./components/ui/spinnerBadge";
 
 interface AnalysisResults {
