@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { CVUpload } from "@/components/CVUpload";
+import {
+  RecommendationPanel,
+} from "@/components/RecommendationPanel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -45,6 +48,21 @@ interface NlpAnalysisResponse {
     model: string;
     cosine_similarity: number;
     similarity_percent: number;
+  };
+  recommendations: {
+    model: string;
+    summary: string;
+    missing_keywords: string[];
+    reformulations: Array<{
+      section: string;
+      current: string;
+      suggestion: string;
+    }>;
+    improvements: Array<{
+      action: string;
+      reason: string;
+    }>;
+    prioritized_actions: string[];
   };
 }
 
@@ -277,6 +295,10 @@ function App(): React.ReactElement {
                           %
                         </p>
                         <p className="text-xs text-slate-500">
+
+                      <RecommendationPanel
+                        recommendations={analysisResult.recommendations}
+                      />
                           cosinus:{" "}
                           {analysisResult.semantic_matching.cosine_similarity.toFixed(
                             4,
@@ -364,6 +386,7 @@ function App(): React.ReactElement {
                       </div>
                     </div>
                   </div>
+
                 </>
               ) : (
                 <p className="text-slate-600">Aucune analyse disponible.</p>

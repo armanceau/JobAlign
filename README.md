@@ -17,6 +17,14 @@ venv\Scripts\activate
 python main.py
 ```
 
+Before running the backend, make sure Ollama is available locally and that the local models are installed:
+
+```bash
+ollama serve
+ollama pull nomic-embed-text
+ollama pull llama3.2:1b
+```
+
 **Frontend:**
 
 ```bash

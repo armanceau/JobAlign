@@ -1,30 +1,21 @@
-import numpy as np
-
 import services.semantic_matcher as semantic_matcher
 
 
-class FakeSentenceTransformer:
-    def __init__(self, model_name: str):
-        self.model_name = model_name
-
-    def encode(self, texts, convert_to_numpy=True, normalize_embeddings=True):
-        assert convert_to_numpy is True
-        assert normalize_embeddings is True
-        assert len(texts) == 2
-        return np.array(
-            [
-                [1.0, 0.0, 0.0],
-                [0.6, 0.8, 0.0],
-            ]
-        )
+import numpy as np
 
 
 def test_generate_embeddings_returns_cv_and_offer_vectors(monkeypatch):
-    def fake_get_embedding_model(model_name: str):
-        assert model_name == "fake-model"
-        return FakeSentenceTransformer(model_name)
+    calls: list[str] = []
 
-    monkeypatch.setattr(semantic_matcher, "get_embedding_model", fake_get_embedding_model)
+
+    def fake_fetch_embedding(text: str, model_name: str):
+        assert model_name == "fake-model"
+        calls.append(text)
+        if len(calls) == 1:
+            return np.array([1.0, 0.0, 0.0])
+        return np.array([0.6, 0.8, 0.0])
+
+    monkeypatch.setattr(semantic_matcher, "_fetch_embedding", fake_fetch_embedding)
 
     cv_embedding, offer_embedding = semantic_matcher.generate_embeddings(
         "CV avec Python",
@@ -53,6 +44,7 @@ def test_compute_semantic_similarity_returns_cosine_score(monkeypatch):
     )
 
     assert result["model"] == "fake-model"
+    assert result["backend"] == "ollama"
     assert result["cosine_similarity"] == 0.6
     assert result["similarity_percent"] == 60.0
 
@@ -64,3 +56,34 @@ def test_generate_embeddings_rejects_empty_text():
         assert "doivent contenir du texte" in str(exc)
     else:
         raise AssertionError("generate_embeddings doit refuser un texte vide")
+
+
+def test_generate_cv_recommendations_parses_ollama_json(monkeypatch):
+    def fake_post(path: str, payload: dict[str, object]):
+        assert path == "/api/generate"
+        assert payload["model"] == "fake-chat-model"
+        return {
+            "response": (
+                "{\"summary\":\"Ajoute des preuves chiffrées\","
+                "\"missing_keywords\":[\"Docker\",\"CI/CD\"],"
+                "\"reformulations\":[{\"section\":\"Expérience\",\"current\":\"Développement\",\"suggestion\":\"Développement Python Docker\"}],"
+                "\"improvements\":[{\"action\":\"Ajouter des métriques\",\"reason\":\"Rend le CV plus crédible\"}],"
+                "\"prioritized_actions\":[\"Ajouter Docker\",\"Ajouter CI/CD\"]}"
+            )
+        }
+
+    monkeypatch.setattr(semantic_matcher, "_ollama_post", fake_post)
+
+    result = semantic_matcher.generate_cv_recommendations(
+        "CV",
+        "Offre",
+        {"hard_skills": ["Python"]},
+        {"hard_skills": ["Python", "Docker"]},
+        model_name="fake-chat-model",
+    )
+
+    assert result["backend"] == "ollama"
+    assert result["model"] == "fake-chat-model"
+    assert result["summary"] == "Ajoute des preuves chiffrées"
+    assert result["missing_keywords"] == ["Docker", "CI/CD"]
+    assert result["prioritized_actions"] == ["Ajouter Docker", "Ajouter CI/CD"]

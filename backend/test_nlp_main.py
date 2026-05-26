@@ -12,9 +12,35 @@ def test_nlp_analyze_endpoint_returns_structured_categories(monkeypatch):
         main_module,
         "compute_semantic_similarity",
         lambda cv_text, offer_text: {
+            "backend": "ollama",
             "model": "fake-model",
             "cosine_similarity": 0.82,
             "similarity_percent": 82.0,
+        },
+    )
+
+    monkeypatch.setattr(
+        main_module,
+        "generate_cv_recommendations",
+        lambda cv_text, offer_text, cv_analysis, offer_analysis: {
+            "backend": "ollama",
+            "model": "fake-chat-model",
+            "summary": "Ajoutez davantage de preuves concrètes.",
+            "missing_keywords": ["Docker", "CI/CD"],
+            "reformulations": [
+                {
+                    "section": "Expérience",
+                    "current": "Développement d'applications",
+                    "suggestion": "Développement d'applications Python en environnement Docker et CI/CD",
+                }
+            ],
+            "improvements": [
+                {
+                    "action": "Ajoutez des métriques chiffrées.",
+                    "reason": "Les résultats mesurables renforcent l'impact du CV.",
+                }
+            ],
+            "prioritized_actions": ["Ajouter Docker", "Ajouter CI/CD"],
         },
     )
 
@@ -39,5 +65,8 @@ def test_nlp_analyze_endpoint_returns_structured_categories(monkeypatch):
     assert data["summary"]["shared_hard_skills"] == ["Docker", "Python"]
     assert data["cv"]["diplomas"] == ["Master"]
     assert data["offer"]["diplomas"] == ["Bac+5"]
+    assert data["recommendations"]["backend"] == "ollama"
+    assert data["recommendations"]["model"] == "fake-chat-model"
+    assert data["recommendations"]["missing_keywords"] == ["Docker", "CI/CD"]
     assert data["semantic_matching"]["model"] == "fake-model"
     assert data["semantic_matching"]["cosine_similarity"] == 0.82
