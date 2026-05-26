@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { CVUpload } from "@/components/CVUpload";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -10,14 +11,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  CheckCircle2,
+  Lightbulb,
+} from "lucide-react";
 import RadarChartUI from "@/components/ui/radarChart";
 import Stepper from "./components/Stepper";
+import { Spinner } from "./components/ui/spinner";
+import { SpinnerBadge } from "./components/ui/spinnerBadge";
 
 interface AnalysisResults {
   filename?: string;
   score?: number;
 }
+
+interface RecommendationItem {
+  before: string;
+  after: string;
+  reason: string;
+}
+
+type CriticalityLevel = "critique" | "moyenne" | "faible";
 
 type MatchingCategoryKey =
   | "technical_skills"
@@ -77,6 +93,16 @@ interface NlpAnalysisResponse {
   matching: MatchingResponse;
 }
 
+interface RecommendationResponse {
+  provider: string;
+  model: string;
+  status: string;
+  summary: string;
+  missing_keywords: string[];
+  reformulations: RecommendationItem[];
+  improvements: string[];
+}
+
 function App(): React.ReactElement {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [results, setResults] = useState<AnalysisResults | null>(null);
@@ -85,8 +111,14 @@ function App(): React.ReactElement {
   const [jobOffer, setJobOffer] = useState<string>("");
   const [analysisResult, setAnalysisResult] =
     useState<NlpAnalysisResponse | null>(null);
+  const [recommendations, setRecommendations] =
+    useState<RecommendationResponse | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [recommendationsError, setRecommendationsError] = useState<
+    string | null
+  >(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -108,8 +140,19 @@ function App(): React.ReactElement {
 
     setAnalyzing(true);
     setAnalysisError(null);
+    setRecommendationsError(null);
+    setRecommendations(null);
+    setLoadingRecommendations(true);
 
     try {
+      const recommendationsRequest = axios.post<RecommendationResponse>(
+        `${API_URL}/nlp/recommendations`,
+        {
+          cv_text: extractedText,
+          offer_text: jobOffer,
+        },
+      );
+
       const response = await axios.post<NlpAnalysisResponse>(
         `${API_URL}/nlp/analyze`,
         {
@@ -121,7 +164,25 @@ function App(): React.ReactElement {
       setAnalysisResult(response.data);
       setResults({ filename: uploadedCV ?? undefined });
       setCurrentStep(3);
+
+      void recommendationsRequest
+        .then((recommendationsResponse) => {
+          setRecommendations(recommendationsResponse.data);
+        })
+        .catch((error) => {
+          if (axios.isAxiosError(error) && error.response?.data?.detail) {
+            setRecommendationsError(error.response.data.detail);
+          } else {
+            setRecommendationsError(
+              "Erreur lors du chargement des suggestions locales.",
+            );
+          }
+        })
+        .finally(() => {
+          setLoadingRecommendations(false);
+        });
     } catch (error) {
+      setLoadingRecommendations(false);
       if (axios.isAxiosError(error) && error.response?.data?.detail) {
         setAnalysisError(error.response.data.detail);
       } else {
@@ -135,11 +196,14 @@ function App(): React.ReactElement {
   const resetAnalysis = () => {
     setResults(null);
     setAnalysisResult(null);
+    setRecommendations(null);
     setAnalysisError(null);
+    setRecommendationsError(null);
     setUploadedCV(null);
     setExtractedText(null);
     setJobOffer("");
     setCurrentStep(1);
+    setLoadingRecommendations(false);
   };
 
   const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
@@ -210,9 +274,97 @@ function App(): React.ReactElement {
     );
   };
 
+  const getCriticalityConfig = (level: CriticalityLevel) => {
+    switch (level) {
+      case "critique":
+        return { label: "Critique", variant: "critical" as const };
+      case "moyenne":
+        return { label: "Moyenne", variant: "warning" as const };
+      case "faible":
+        return { label: "Faible", variant: "success" as const };
+      default:
+        return { label: "Moyenne", variant: "warning" as const };
+    }
+  };
+
+  const getCriticalityRank = (level: CriticalityLevel) => {
+    switch (level) {
+      case "critique":
+        return 3;
+      case "moyenne":
+        return 2;
+      case "faible":
+        return 1;
+      default:
+        return 0;
+    }
+  };
+
+  const buildSuggestionCards = () => {
+    if (!recommendations) {
+      return [];
+    }
+
+    const cards: Array<{
+      title: string;
+      text: string;
+      detail?: string;
+      criticality: CriticalityLevel;
+      order: number;
+    }> = [];
+    let order = 0;
+
+    recommendations.missing_keywords.slice(0, 4).forEach((keyword) => {
+      cards.push({
+        title: "Mot-clé manquant",
+        text: `Intégrer ${keyword} dans le résumé ou les expériences.`,
+        detail: "Signal direct de l'offre non couvert par le CV.",
+        criticality: "critique",
+        order: order++,
+      });
+    });
+
+    recommendations.improvements.slice(0, 3).forEach((item) => {
+      cards.push({
+        title: "Amélioration",
+        text: item,
+        detail: "Action concrète pour renforcer l'alignement.",
+        criticality: "moyenne",
+        order: order++,
+      });
+    });
+
+    recommendations.reformulations.slice(0, 3).forEach((item) => {
+      cards.push({
+        title: "Reformulation",
+        text: item.after,
+        detail: item.reason,
+        criticality: "critique",
+        order: order++,
+      });
+    });
+
+    return cards.sort((left, right) => {
+      const rankDelta =
+        getCriticalityRank(right.criticality) -
+        getCriticalityRank(left.criticality);
+      if (rankDelta !== 0) {
+        return rankDelta;
+      }
+
+      return left.order - right.order;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-white py-16 px-4">
-      <div className={results ? "max-w-4xl mx-auto space-y-12" : "max-w-2xl mx-auto space-y-12"}>
+      <div
+        className={
+          results
+            ? "max-w-4xl mx-auto space-y-12"
+            : "max-w-2xl mx-auto space-y-12"
+        }
+      >
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-slate-900">JobAlign</h1>
           <p className="text-base text-slate-600">
@@ -344,122 +496,233 @@ function App(): React.ReactElement {
                         </span>
                       </div>
 
-                        <div className="space-y-1">
-                      <div className="flex items-baseline justify-between">
-                        <p className="text-2xl font-semibold text-slate-900">
-                          {clampPercent(
-                            analysisResult.matching.global_score_percent,
-                          ).toFixed(2)}
-                          %
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Détail par catégorie
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        {matchingCategoryOrder.map((cat) => {
-                          const sub =
-                            analysisResult.matching.subscores[cat.key];
-                          return (
-                            <div
-                              key={cat.key}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {cat.label}
+                      <div className="space-y-1">
+                        <div className="flex items-baseline justify-between">
+                          <p className="text-2xl font-semibold text-slate-900">
+                            {clampPercent(
+                              analysisResult.matching.global_score_percent,
+                            ).toFixed(2)}
+                            %
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Détail par catégorie
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          {matchingCategoryOrder.map((cat) => {
+                            const sub =
+                              analysisResult.matching.subscores[cat.key];
+                            return (
+                              <div
+                                key={cat.key}
+                                className="flex items-center justify-between"
+                              >
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-slate-900">
+                                    {cat.label}
+                                  </div>
+                                  <div className="text-xs text-slate-500">
+                                    {sub.justification}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-slate-500">
-                                  {sub.justification}
+                                <div className="ml-4 text-right">
+                                  <div
+                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
+                                  >
+                                    {sub.score_percent.toFixed(2)}%
+                                  </div>
                                 </div>
                               </div>
-                              <div className="ml-4 text-right">
-                                <div
-                                  className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
-                                >
-                                  {sub.score_percent.toFixed(2)}%
-                                </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+                        <h4 className="text-sm font-semibold text-slate-900 mb-2">
+                          Comparaison radar des compétences
+                        </h4>
+                        <RadarChartUI analysisResult={analysisResult} />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-3">
+                      <Card className="border-slate-200 bg-white shadow-sm">
+                        <CardHeader className="space-y-2">
+                          <CardTitle className="flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-black" />
+                            Forces du CV
+                          </CardTitle>
+                          <h2>Ce qui matche déjà</h2>
+                          <CardDescription>
+                            Les éléments solides et directement alignés avec
+                            l'offre.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Hard skills communes
+                            </p>
+                            {renderList(
+                              analysisResult.summary.shared_hard_skills,
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Soft skills communes
+                            </p>
+                            {renderList(
+                              analysisResult.summary.shared_soft_skills,
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Diplômes communs
+                            </p>
+                            {renderList(analysisResult.summary.shared_diplomas)}
+                          </div>
+
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Radar rapide
+                            </p>
+                            <p className="mt-1 text-sm text-slate-700">
+                              {clampPercent(
+                                analysisResult.matching.global_score_percent,
+                              ).toFixed(2)}
+                              % d'alignement global.
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-slate-200 bg-white shadow-sm">
+                        <CardHeader className="space-y-2">
+                          <CardTitle className="flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5 text-black" />
+                            Axes d'amélioration
+                          </CardTitle>
+                          <h2>Ce qu'il faut renforcer</h2>
+                          <CardDescription>
+                            Les écarts les plus visibles entre le CV et l'offre.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Mots-clés manquants
+                            </p>
+                            {renderList(
+                              recommendations?.missing_keywords ?? [],
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Offre non couverte
+                            </p>
+                            {renderList(
+                              analysisResult.offer.hard_skills.filter(
+                                (skill) =>
+                                  !analysisResult.summary.shared_hard_skills.includes(
+                                    skill,
+                                  ),
+                              ),
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Signaux faibles
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              {recommendationsError
+                                ? recommendationsError
+                                : loadingRecommendations
+                                  ? "Les suggestions locales se chargent encore."
+                                  : "Les suggestions détaillées apparaissent dans la colonne de droite."}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-slate-200 bg-white shadow-sm">
+                        <CardHeader className="space-y-2">
+                          <CardTitle className="flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5 text-black" />
+                            Suggestions
+                          </CardTitle>
+                          <h2>Actions concrètes à appliquer</h2>
+
+                          {loadingRecommendations && <SpinnerBadge />}
+                          <CardDescription>
+                            Les recommandations locales générées par Ollama
+                            s'affichent ici.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {recommendationsError ? (
+                            <Alert variant="destructive">
+                              <AlertDescription>
+                                {recommendationsError}
+                              </AlertDescription>
+                            </Alert>
+                          ) : recommendations ? (
+                            <>
+                              <p className="text-sm text-slate-600">
+                                {recommendations.summary}
+                              </p>
+
+                              <div className="space-y-3">
+                                {buildSuggestionCards().length === 0 ? (
+                                  <p className="text-sm text-slate-500">
+                                    Aucune suggestion exploitable détectée.
+                                  </p>
+                                ) : (
+                                  buildSuggestionCards().map((card, index) => {
+                                    const criticality = getCriticalityConfig(
+                                      card.criticality,
+                                    );
+
+                                    return (
+                                      <div
+                                        key={`${card.title}-${index}`}
+                                        className="rounded-lg border border-slate-200 bg-slate-50 p-3"
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="space-y-1">
+                                            <p className="text-sm font-medium text-slate-900">
+                                              {card.title}
+                                            </p>
+                                            <p className="text-sm text-slate-600">
+                                              {card.text}
+                                            </p>
+                                          </div>
+                                          <Badge variant={criticality.variant}>
+                                            {criticality.label}
+                                          </Badge>
+                                        </div>
+                                        {card.detail && (
+                                          <p className="mt-2 text-xs text-slate-500">
+                                            {card.detail}
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  })
+                                )}
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-                      <h4 className="text-sm font-semibold text-slate-900 mb-2">Comparaison radar des compétences</h4>
-                      <RadarChartUI analysisResult={analysisResult} />
-                    </div>
-                  </div>
-
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Hard skills communes
-                      </h3>
-                      {renderList(analysisResult.summary.shared_hard_skills)}
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Soft skills communes
-                      </h3>
-                      {renderList(analysisResult.summary.shared_soft_skills)}
-                    </div>
-
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Diplômes communs
-                      </h3>
-                      {renderList(analysisResult.summary.shared_diplomas)}
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-                        <h3 className="text-sm font-semibold text-slate-900">
-                          CV
-                        </h3>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Hard skills
-                          </p>
-                          {renderList(analysisResult.cv.hard_skills)}
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Soft skills
-                          </p>
-                          {renderList(analysisResult.cv.soft_skills)}
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Diplômes
-                          </p>
-                          {renderList(analysisResult.cv.diplomas)}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 rounded-lg border border-slate-200 p-4">
-                        <h3 className="text-sm font-semibold text-slate-900">
-                          Offre
-                        </h3>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Hard skills
-                          </p>
-                          {renderList(analysisResult.offer.hard_skills)}
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Soft skills
-                          </p>
-                          {renderList(analysisResult.offer.soft_skills)}
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-xs uppercase tracking-wide text-slate-500">
-                            Diplômes
-                          </p>
-                          {renderList(analysisResult.offer.diplomas)}
-                        </div>
-                      </div>
+                            </>
+                          ) : (
+                            <p className="text-sm text-slate-500">
+                              Les suggestions arrivent en dessous dès qu'Ollama
+                              a terminé.
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   </>
                 ) : (
