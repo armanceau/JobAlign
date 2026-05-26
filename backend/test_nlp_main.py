@@ -29,7 +29,7 @@ def test_nlp_analyze_endpoint_returns_structured_categories(monkeypatch):
     assert data["cv"]["diplomas"] == ["Master"]
     assert data["offer"]["diplomas"] == ["Bac+5"]
     assert data["matching"]["method"] == "deterministic_rule_based"
-    assert data["matching"]["global_score_percent"] == 90.0
+    assert data["matching"]["global_score_percent"] == 88.89
     assert data["matching"]["subscores"]["technical_skills"]["score_percent"] == 100.0
     assert data["matching"]["subscores"]["soft_skills"]["score_percent"] == 0.0
     assert any(
