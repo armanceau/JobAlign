@@ -4,11 +4,16 @@ CV & Job Offer Analyzer with Local AI
 
 ## Quick Start
 
+### Requirements
+
+- Version python : **3.11** (⚠️ required)
+
 **Backend:**
 
 ```bash
 cd backend
 pip install -r requirements.txt
+venv\Scripts\activate
 python main.py
 ```
 
