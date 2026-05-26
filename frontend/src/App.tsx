@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckCircle } from "lucide-react";
+import RadarChartUI from "@/components/ui/radarChart";
 
 interface AnalysisResults {
   filename?: string;
@@ -331,7 +332,7 @@ function App(): React.ReactElement {
                       </span>
                     </div>
 
-                    <div className="space-y-1">
+                        <div className="space-y-1">
                       <div className="flex items-baseline justify-between">
                         <p className="text-2xl font-semibold text-slate-900">
                           {clampPercent(
@@ -346,6 +347,10 @@ function App(): React.ReactElement {
                           )}
                         </p>
                       </div>
+                    </div>
+                    <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+                      <h4 className="text-sm font-semibold text-slate-900 mb-2">Comparaison radar des compétences</h4>
+                      <RadarChartUI analysisResult={analysisResult} />
                     </div>
                   </div>
 
