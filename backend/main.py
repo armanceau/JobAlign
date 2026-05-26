@@ -5,16 +5,18 @@ from pydantic import BaseModel, Field
 import os
 import uuid
 import re
+from typing import Any
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
+from services.semantic_matcher import compute_semantic_similarity
+from services.ollama_recommendations import generate_cv_recommendations
 from nlp.cv_offer_analyzer import analyze_cv_and_offer
-from nlp.matching_scoring import compute_matching_score
 
 app = FastAPI(title="JobAlign API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +33,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 class NLPAnalysisRequest(BaseModel):
     cv_text: str = Field(..., min_length=1)
     offer_text: str = Field(..., min_length=1)
+
+
+class NLPRecommendationRequest(BaseModel):
+    cv_text: str = Field(..., min_length=1)
+    offer_text: str = Field(..., min_length=1)
+    cv_analysis: dict[str, Any]
+    offer_analysis: dict[str, Any]
 
 @app.get("/")
 async def root():
@@ -157,7 +166,10 @@ async def analyze_nlp(payload: NLPAnalysisRequest):
 
     try:
         analysis = analyze_cv_and_offer(payload.cv_text, payload.offer_text)
-        analysis["matching"] = compute_matching_score(analysis["cv"], analysis["offer"])
+        analysis["semantic_matching"] = compute_semantic_similarity(
+            payload.cv_text,
+            payload.offer_text,
+        )
 
         return JSONResponse(status_code=200, content=analysis)
 
@@ -165,6 +177,27 @@ async def analyze_nlp(payload: NLPAnalysisRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors de l'analyse NLP: {str(e)}"
+        )
+
+
+@app.post("/nlp/recommendations")
+async def recommend_nlp(payload: NLPRecommendationRequest):
+    """Génère les recommandations locales Ollama à partir de l'analyse déjà calculée."""
+
+    try:
+        recommendations = generate_cv_recommendations(
+            payload.cv_text,
+            payload.offer_text,
+            payload.cv_analysis,
+            payload.offer_analysis,
+        )
+
+        return JSONResponse(status_code=200, content={"recommendations": recommendations})
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la génération des recommandations: {str(e)}"
         )
 
 if __name__ == "__main__":

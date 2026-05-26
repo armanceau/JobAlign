@@ -144,6 +144,7 @@ export const CVUpload: React.FC<CVUploadProps> = ({
       )}
 
       <Button
+        type="button"
         variant="primary"
         onClick={handleUpload}
         disabled={!file || uploading}

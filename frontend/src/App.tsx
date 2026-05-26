@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { CVUpload } from "@/components/CVUpload";
+import { RecommendationPanel } from "./components/RecommendationPanel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,35 +16,6 @@ import { CheckCircle } from "lucide-react";
 interface AnalysisResults {
   filename?: string;
   score?: number;
-}
-
-type MatchingCategoryKey =
-  | "technical_skills"
-  | "experience"
-  | "education"
-  | "soft_skills"
-  | "language";
-
-interface MatchingCategoryResult {
-  score_percent: number;
-  weight: number;
-  required_count: number;
-  matched_count: number;
-  required_items: string[];
-  matched_items: string[];
-  missing_items: string[];
-  justification: string;
-  required_years?: number;
-  cv_years?: number;
-  cv_rank?: number;
-  required_rank?: number;
-}
-
-interface MatchingResponse {
-  method: string;
-  global_score_percent: number;
-  subscores: Record<MatchingCategoryKey, MatchingCategoryResult>;
-  justifications: string[];
 }
 
 interface NlpCategoryResult {
@@ -72,8 +44,33 @@ interface NlpAnalysisResponse {
     shared_diplomas: string[];
     shared_languages: string[];
   };
-  matching: MatchingResponse;
+  semantic_matching: {
+    backend: string;
+    model: string;
+    cosine_similarity: number;
+    similarity_percent: number;
+  };
 }
+
+type NlpRecommendationResponse = {
+  recommendations: {
+    backend: string;
+    model: string;
+    summary: string;
+    missing_keywords: string[];
+    reformulations: Array<{
+      section: string;
+      current: string;
+      suggestion: string;
+    }>;
+    improvements: Array<{
+      action: string;
+      reason: string;
+    }>;
+    prioritized_actions: string[];
+    error?: string;
+  };
+};
 
 function App(): React.ReactElement {
   const [results, setResults] = useState<AnalysisResults | null>(null);
@@ -82,8 +79,12 @@ function App(): React.ReactElement {
   const [jobOffer, setJobOffer] = useState<string>("");
   const [analysisResult, setAnalysisResult] =
     useState<NlpAnalysisResponse | null>(null);
+  const [recommendationResult, setRecommendationResult] =
+    useState<NlpRecommendationResponse["recommendations"] | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [recommending, setRecommending] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
@@ -116,6 +117,8 @@ function App(): React.ReactElement {
       );
 
       setAnalysisResult(response.data);
+      setRecommendationResult(null);
+      setRecommendationError(null);
       setResults({ filename: uploadedCV ?? undefined });
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.data?.detail) {
@@ -131,10 +134,44 @@ function App(): React.ReactElement {
   const resetAnalysis = () => {
     setResults(null);
     setAnalysisResult(null);
+    setRecommendationResult(null);
     setAnalysisError(null);
+    setRecommendationError(null);
     setUploadedCV(null);
     setExtractedText(null);
     setJobOffer("");
+  };
+
+  const handleRecommend = async () => {
+    if (!analysisResult || !extractedText || !jobOffer.trim()) {
+      setRecommendationError("L'analyse doit être effectuée avant de générer les recommandations.");
+      return;
+    }
+
+    setRecommending(true);
+    setRecommendationError(null);
+
+    try {
+      const response = await axios.post<NlpRecommendationResponse>(
+        `${API_URL}/nlp/recommendations`,
+        {
+          cv_text: extractedText,
+          offer_text: jobOffer,
+          cv_analysis: analysisResult.cv,
+          offer_analysis: analysisResult.offer,
+        },
+      );
+
+      setRecommendationResult(response.data.recommendations);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.data?.detail) {
+        setRecommendationError(error.response.data.detail);
+      } else {
+        setRecommendationError("Erreur lors de la génération des recommandations. Veuillez réessayer.");
+      }
+    } finally {
+      setRecommending(false);
+    }
   };
 
   const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
@@ -144,7 +181,6 @@ function App(): React.ReactElement {
       return {
         label: "Excellent alignement",
         badgeClass: "text-emerald-700 bg-emerald-50 border-emerald-200",
-        barClass: "bg-emerald-500",
       };
     }
 
@@ -152,38 +188,13 @@ function App(): React.ReactElement {
       return {
         label: "Alignement moyen",
         badgeClass: "text-amber-700 bg-amber-50 border-amber-200",
-        barClass: "bg-amber-500",
       };
     }
 
     return {
       label: "Alignement faible",
       badgeClass: "text-rose-700 bg-rose-50 border-rose-200",
-      barClass: "bg-rose-500",
     };
-  };
-
-  const matchingCategoryOrder: Array<{
-    key: MatchingCategoryKey;
-    label: string;
-  }> = [
-    { key: "technical_skills", label: "Compétences techniques" },
-    { key: "experience", label: "Expérience" },
-    { key: "education", label: "Formation" },
-    { key: "soft_skills", label: "Soft skills" },
-    { key: "language", label: "Langage" },
-  ];
-
-  const getSubscoreTone = (percent: number) => {
-    if (percent >= 80) {
-      return "text-emerald-700 bg-emerald-50 border-emerald-200";
-    }
-
-    if (percent >= 50) {
-      return "text-amber-700 bg-amber-50 border-amber-200";
-    }
-
-    return "text-rose-700 bg-rose-50 border-rose-200";
   };
 
   const renderList = (items: string[]) => {
@@ -207,7 +218,7 @@ function App(): React.ReactElement {
 
   return (
     <div className="min-h-screen bg-white py-16 px-4">
-      <div className="max-w-2xl mx-auto space-y-12">
+      <div className="mx-auto max-w-2xl space-y-12">
         <div className="space-y-2">
           <h1 className="text-4xl font-bold text-slate-900">JobAlign</h1>
           <p className="text-base text-slate-600">
@@ -233,18 +244,18 @@ function App(): React.ReactElement {
                   <Alert className="mt-6">
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      CV chargé:{" "}
+                      CV chargé: {" "}
                       <span className="font-medium">{uploadedCV}</span>
                     </AlertDescription>
                   </Alert>
                 )}
                 {extractedText && (
                   <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-slate-900 mb-3">
+                    <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
                       <CheckCircle className="h-4 w-4" />
                       Texte extrait
                     </div>
-                    <pre className="whitespace-pre-wrap text-sm text-slate-700 max-h-64 overflow-y-auto">
+                    <pre className="max-h-64 whitespace-pre-wrap overflow-y-auto text-sm text-slate-700">
                       {extractedText}
                     </pre>
                   </div>
@@ -264,9 +275,10 @@ function App(): React.ReactElement {
                   placeholder="Collez ici l'offre d'emploi complète..."
                   value={jobOffer}
                   onChange={(e) => setJobOffer(e.target.value)}
-                  className="w-full h-40 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-0 font-mono text-sm resize-none"
+                  className="h-40 w-full resize-none rounded-md border border-slate-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-0"
                 />
                 <Button
+                  type="button"
                   variant="primary"
                   onClick={handleAnalyze}
                   disabled={!uploadedCV || !extractedText || analyzing}
@@ -298,28 +310,24 @@ function App(): React.ReactElement {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-900">
-                          Matching déterministe CV/offre
+                          Matching sémantique CV/offre
                         </h3>
                         <p className="text-xs text-slate-500">
-                          Méthode: {analysisResult.matching.method}
+                          Modèle: {analysisResult.semantic_matching.model}
                         </p>
                       </div>
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                          getScoreTone(
-                            clampPercent(
-                              analysisResult.matching.global_score_percent,
-                            ),
-                          ).badgeClass
-                        }`}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium ${getScoreTone(
+                          clampPercent(
+                            analysisResult.semantic_matching.similarity_percent,
+                          ),
+                        ).badgeClass}`}
                       >
-                        {
-                          getScoreTone(
-                            clampPercent(
-                              analysisResult.matching.global_score_percent,
-                            ),
-                          ).label
-                        }
+                        {getScoreTone(
+                          clampPercent(
+                            analysisResult.semantic_matching.similarity_percent,
+                          ),
+                        ).label}
                       </span>
                     </div>
 
@@ -327,44 +335,54 @@ function App(): React.ReactElement {
                       <div className="flex items-baseline justify-between">
                         <p className="text-2xl font-semibold text-slate-900">
                           {clampPercent(
-                            analysisResult.matching.global_score_percent,
+                            analysisResult.semantic_matching.similarity_percent,
                           ).toFixed(2)}
                           %
                         </p>
                         <p className="text-xs text-slate-500">
-                          Détail par catégorie
+                          Cosinus: {" "}
+                          {analysisResult.semantic_matching.cosine_similarity.toFixed(
+                            4,
+                          )}
                         </p>
-                      </div>
-                      <div className="space-y-2">
-                        {matchingCategoryOrder.map((cat) => {
-                          const sub =
-                            analysisResult.matching.subscores[cat.key];
-                          return (
-                            <div
-                              key={cat.key}
-                              className="flex items-center justify-between"
-                            >
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-slate-900">
-                                  {cat.label}
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                  {sub.justification}
-                                </div>
-                              </div>
-                              <div className="ml-4 text-right">
-                                <div
-                                  className={`rounded-full border px-3 py-1 text-xs font-medium ${getSubscoreTone(sub.score_percent)}`}
-                                >
-                                  {sub.score_percent.toFixed(2)}%
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
                   </div>
+
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={handleRecommend}
+                    disabled={!analysisResult || recommending}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {recommending ? "Génération en cours..." : "Recommander"}
+                  </Button>
+
+                  {recommendationError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{recommendationError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {recommendationResult?.error && (
+                    <Alert variant="destructive">
+                      <AlertDescription>
+                        {recommendationResult.error}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {recommendationResult ? (
+                    <RecommendationPanel
+                      recommendations={recommendationResult}
+                    />
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+                      Cliquez sur <span className="font-medium">Recommander</span> après le matching pour générer les suggestions locales Ollama.
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-slate-900">
@@ -385,6 +403,13 @@ function App(): React.ReactElement {
                       Diplômes communs
                     </h3>
                     {renderList(analysisResult.summary.shared_diplomas)}
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Langues communes
+                    </h3>
+                    {renderList(analysisResult.summary.shared_languages)}
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -410,6 +435,12 @@ function App(): React.ReactElement {
                         </p>
                         {renderList(analysisResult.cv.diplomas)}
                       </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Langues
+                        </p>
+                        {renderList(analysisResult.cv.languages)}
+                      </div>
                     </div>
 
                     <div className="space-y-3 rounded-lg border border-slate-200 p-4">
@@ -434,6 +465,12 @@ function App(): React.ReactElement {
                         </p>
                         {renderList(analysisResult.offer.diplomas)}
                       </div>
+                      <div className="space-y-2">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">
+                          Langues
+                        </p>
+                        {renderList(analysisResult.offer.languages)}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -441,6 +478,7 @@ function App(): React.ReactElement {
                 <p className="text-slate-600">Aucune analyse disponible.</p>
               )}
               <Button
+                type="button"
                 onClick={resetAnalysis}
                 variant="outline"
                 className="w-full"
