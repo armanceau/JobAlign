@@ -42,10 +42,12 @@ export default function RadarChart({ analysisResult }: Props) {
                 {
                     label: "Matching par catégorie",
                     data: values,
-                    backgroundColor: "rgba(37, 99, 235, 0.2)",
-                    borderColor: "rgba(37, 99, 235, 1)",
+                    backgroundColor: "rgba(0, 0, 0, 0.3)",
+                    borderColor: "#000000",
                     borderWidth: 2,
-                    pointBackgroundColor: "rgba(37, 99, 235, 1)",
+                    pointBackgroundColor: "rgba(0, 0, 0, 0.3)",
+                    pointBorderColor: "#fff",
+                    pointBorderWidth: 1,
                 },
             ],
         };
