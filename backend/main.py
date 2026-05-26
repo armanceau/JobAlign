@@ -7,6 +7,7 @@ import uuid
 import re
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
+from services.ollama_recommender import generate_local_recommendations
 from nlp.cv_offer_analyzer import analyze_cv_and_offer
 from nlp.matching_scoring import compute_matching_score
 
@@ -29,6 +30,11 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class NLPAnalysisRequest(BaseModel):
+    cv_text: str = Field(..., min_length=1)
+    offer_text: str = Field(..., min_length=1)
+
+
+class NLPRecommendationRequest(BaseModel):
     cv_text: str = Field(..., min_length=1)
     offer_text: str = Field(..., min_length=1)
 
@@ -165,6 +171,26 @@ async def analyze_nlp(payload: NLPAnalysisRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors de l'analyse NLP: {str(e)}"
+        )
+
+
+@app.post("/nlp/recommendations")
+async def generate_nlp_recommendations(payload: NLPRecommendationRequest):
+    """Génère des recommandations actionnables en local via Ollama."""
+
+    try:
+        analysis = analyze_cv_and_offer(payload.cv_text, payload.offer_text)
+        analysis["matching"] = compute_matching_score(analysis["cv"], analysis["offer"])
+        analysis["cv_text"] = payload.cv_text
+        analysis["offer_text"] = payload.offer_text
+        recommendations = await generate_local_recommendations(analysis)
+
+        return JSONResponse(status_code=200, content=recommendations)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la génération des recommandations: {str(e)}"
         )
 
 if __name__ == "__main__":
