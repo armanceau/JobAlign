@@ -4,7 +4,7 @@ import nlp.cv_offer_analyzer as analyzer
 def test_analyze_text_extracts_categories():
     text = (
         "Ingénieur logiciel avec 5 ans d'expérience en Python, FastAPI et Docker. "
-        "Travail d'équipe, autonomie et rigueur. Master en informatique."
+        "Travail d'équipe, autonomie et rigueur. Master en informatique. Anglais courant."
     )
 
     result = analyzer.analyze_text(text)
@@ -12,6 +12,7 @@ def test_analyze_text_extracts_categories():
     assert result["hard_skills"] == ["Python", "FastAPI", "Docker"]
     assert result["soft_skills"] == ["Travail d'équipe", "autonomie", "rigueur"]
     assert result["diplomas"] == ["Master"]
+    assert result["languages"] == ["Anglais"]
     assert result["experiences"] == [
         {"text": "Ingénieur logiciel avec 5 ans d'expérience en Python, FastAPI et Docker.", "years": 5}
     ]
@@ -49,3 +50,14 @@ def test_analyze_cv_and_offer_returns_shared_summary():
     assert result["offer"]["hard_skills"] == ["Python", "Docker"]
     assert result["summary"]["shared_hard_skills"] == ["Docker", "Python"]
     assert result["summary"]["shared_diplomas"] == []
+
+
+def test_analyze_cv_and_offer_returns_shared_languages():
+    cv_text = "CV en français avec anglais courant et Python."
+    offer_text = "Offre en français demandant anglais professionnel et Docker."
+
+    result = analyzer.analyze_cv_and_offer(cv_text, offer_text)
+
+    assert result["cv"]["languages"] == ["français", "anglais"]
+    assert result["offer"]["languages"] == ["français", "anglais"]
+    assert result["summary"]["shared_languages"] == ["anglais", "français"]

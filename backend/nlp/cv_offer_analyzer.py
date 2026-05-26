@@ -59,6 +59,19 @@ SOFT_SKILLS = [
     "résolution de problèmes",
 ]
 
+LANGUAGES = [
+    "français",
+    "anglais",
+    "espagnol",
+    "allemand",
+    "italien",
+    "portugais",
+    "néerlandais",
+    "arabe",
+    "chinois",
+    "japonais",
+]
+
 DIPLOMAS = [
     "bac",
     "bac+2",
@@ -128,6 +141,7 @@ def _build_matcher(nlp: Language) -> PhraseMatcher:
     matcher.add("HARD_SKILL", [nlp.make_doc(item) for item in HARD_SKILLS])
     matcher.add("SOFT_SKILL", [nlp.make_doc(item) for item in SOFT_SKILLS])
     matcher.add("DIPLOMA", [nlp.make_doc(item) for item in DIPLOMAS])
+    matcher.add("LANGUAGE", [nlp.make_doc(item) for item in LANGUAGES])
     return matcher
 
 
@@ -144,6 +158,7 @@ def build_nlp_pipeline() -> Language:
             "hard_skills": [],
             "soft_skills": [],
             "diplomas": [],
+            "languages": [],
         }
         entities: list[dict[str, Any]] = []
 
@@ -160,6 +175,8 @@ def build_nlp_pipeline() -> Language:
                 matches_by_label["soft_skills"].append(normalized_text)
             elif label == "DIPLOMA":
                 matches_by_label["diplomas"].append(normalized_text)
+            elif label == "LANGUAGE":
+                matches_by_label["languages"].append(normalized_text)
 
             entities.append(
                 {
@@ -190,6 +207,7 @@ def build_nlp_pipeline() -> Language:
             "hard_skills": _unique_preserving_order(matches_by_label["hard_skills"]),
             "soft_skills": _unique_preserving_order(matches_by_label["soft_skills"]),
             "diplomas": _unique_preserving_order(matches_by_label["diplomas"]),
+            "languages": _unique_preserving_order(matches_by_label["languages"]),
             "experiences": experience_snippets,
             "entities": entities,
         }
@@ -210,6 +228,7 @@ def analyze_text(text: str) -> dict[str, Any]:
             "hard_skills": [],
             "soft_skills": [],
             "diplomas": [],
+            "languages": [],
             "experiences": [],
             "entities": [],
         }
@@ -234,6 +253,9 @@ def analyze_cv_and_offer(cv_text: str, offer_text: str) -> dict[str, Any]:
             ),
             "shared_diplomas": sorted(
                 set(cv_analysis["diplomas"]) & set(offer_analysis["diplomas"])
+            ),
+            "shared_languages": sorted(
+                set(cv_analysis["languages"]) & set(offer_analysis["languages"])
             ),
         },
     }

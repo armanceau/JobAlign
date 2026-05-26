@@ -7,8 +7,8 @@ import uuid
 import re
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
-from services.semantic_matcher import compute_semantic_similarity
 from nlp.cv_offer_analyzer import analyze_cv_and_offer
+from nlp.matching_scoring import compute_matching_score
 
 app = FastAPI(title="JobAlign API", version="0.1.0")
 
@@ -157,10 +157,7 @@ async def analyze_nlp(payload: NLPAnalysisRequest):
 
     try:
         analysis = analyze_cv_and_offer(payload.cv_text, payload.offer_text)
-        analysis["semantic_matching"] = compute_semantic_similarity(
-            payload.cv_text,
-            payload.offer_text,
-        )
+        analysis["matching"] = compute_matching_score(analysis["cv"], analysis["offer"])
 
         return JSONResponse(status_code=200, content=analysis)
 
