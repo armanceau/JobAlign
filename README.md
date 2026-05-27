@@ -6,8 +6,8 @@ CV & Job Offer Analyzer with Local AI
 
 ### Requirements
 
-- Version python : **3.11**
-- Ollama with 1 model
+- Version de python : **3.11**
+- Ollama avec 1 modèle
 
 ## Lancement avec Docker
 
@@ -22,6 +22,12 @@ Cette commande démarre:
 - le backend FastAPI sur `http://localhost:8000`
 - le frontend Vite sur `http://localhost:5173`
 
+Avant de lancer le compose, démarrez aussi Ollama sur la machine hôte dans un autre terminal:
+
+```bash
+ollama serve
+```
+
 Variables d'environnement minimales prises en compte par le compose:
 
 - Frontend: `VITE_API_URL=http://localhost:8000`
@@ -30,6 +36,12 @@ Variables d'environnement minimales prises en compte par le compose:
 Les autres paramètres conservent leurs valeurs par défaut (`OLLAMA_TIMEOUT_SECONDS`, `OLLAMA_LETTER_MODEL`, `JOBALIGN_EMBEDDING_MODEL`) et ne sont à changer que si vous voulez ajuster le comportement du modèle local.
 
 Le backend attend toujours une instance Ollama locale accessible depuis l'hôte. Sur Docker Desktop, `host.docker.internal` permet au conteneur de joindre Ollama lancé sur la machine.
+
+Résumé du démarrage Docker:
+
+1. lancer `ollama serve` dans un terminal séparé
+2. lancer `docker compose up --build` à la racine du projet
+3. ouvrir `http://localhost:5173`
 
 **Backend:**
 
