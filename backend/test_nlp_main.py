@@ -73,3 +73,34 @@ def test_nlp_recommendations_endpoint_returns_local_suggestions(monkeypatch):
     data = response.json()
     assert data["provider"] == "ollama"
     assert data["missing_keywords"] == ["FastAPI", "Docker"]
+
+
+def test_nlp_motivation_letter_endpoint_returns_letter(monkeypatch):
+    payload = {
+        "cv_text": "Développeur Python avec expérience FastAPI.",
+        "offer_text": "Poste backend Python chez Acme.",
+        "company_name": "Acme",
+        "candidate_name": "Alex",
+    }
+
+    async def fake_generate_motivation_letter(**kwargs):
+        return {
+            "provider": "ollama",
+            "model": "qwen3.5",
+            "status": "ok",
+            "letter": "Madame, Monsieur, je vous adresse ma candidature...",
+        }
+
+    monkeypatch.setattr(
+        main_module,
+        "generate_motivation_letter",
+        fake_generate_motivation_letter,
+    )
+
+    response = client.post("/nlp/motivation-letter", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provider"] == "ollama"
+    assert data["status"] == "ok"
+    assert "candidature" in data["letter"]

@@ -37,6 +37,31 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-27] - Générateur de lettre de motivation local (étape finale optionnelle)
+
+**Contexte :**
+Besoin d'ajouter une nouvelle fonctionnalité non bloquante pour générer une lettre de motivation basée sur le CV et l'offre, en local via Ollama.
+
+**Décision :**
+
+- Ajout d'un service backend dédié `backend/services/ollama_cover_letter.py`
+- Ajout d'un endpoint `POST /nlp/motivation-letter`
+- Ajout d'un composant frontend dédié `MotivationLetterGenerator`
+- Ajout d'une 4e étape `Lettre` dans le stepper, optionnelle après les résultats
+- Fallback local de lettre si la génération Ollama échoue
+
+**Raison :**
+
+- Respecter l'architecture modulaire (nouveau service dédié)
+- Garder le parcours principal inchangé et rapide
+- Permettre à l'utilisateur de générer une lettre uniquement s'il le souhaite
+
+**Impact :**
+
+- ✅ Nouvelle fonctionnalité de génération de lettre disponible en local
+- ✅ Aucun blocage du flux principal d'analyse CV/offre
+- ✅ Robustesse améliorée grâce au fallback backend
+
 ### [2026-05-26] - Affichage immédiat du résultat et chargement parallèle des suggestions
 
 **Contexte :**
