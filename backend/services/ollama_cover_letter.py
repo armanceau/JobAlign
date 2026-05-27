@@ -21,14 +21,45 @@ def _truncate(text: str, limit: int = 4500) -> str:
     return cleaned[: limit - 3].rstrip() + "..."
 
 
+def _infer_company_name(offer_text: str, fallback: str = "") -> str:
+    text = offer_text.strip()
+    if not text:
+        return fallback
+
+    patterns = [
+        r"(?:chez|pour|au sein de|pour le compte de|rejoindre|intégrer)\s+([A-ZÀ-ÖØ-Þ][^.,\n;]{2,80})",
+        r"(?:entreprise|société|organisation|groupe)\s*[:\-]\s*([A-ZÀ-ÖØ-Þ][^.,\n;]{2,80})",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            candidate = _normalize_spaces(match.group(1))
+            if candidate:
+                return candidate
+
+    first_lines = [line.strip(" •\t") for line in text.splitlines() if line.strip()]
+    for line in first_lines[:6]:
+        if len(line) <= 80 and any(keyword in line.lower() for keyword in ("recrute", "jobs", "offre", "poste")):
+            continue
+        if len(line) <= 80 and re.search(r"[A-ZÀ-ÖØ-Þ]", line):
+            return line
+
+    return fallback
+
+
+def _infer_recipient_salutation(_: str) -> str:
+    return "Madame, Monsieur"
+
+
 def _fallback_letter(
     cv_text: str,
     offer_text: str,
     company_name: str | None,
     candidate_name: str | None,
 ) -> str:
-    company = (company_name or "votre entreprise").strip() or "votre entreprise"
-    candidate = (candidate_name or "Madame, Monsieur").strip() or "Madame, Monsieur"
+    company = (company_name or _infer_company_name(offer_text, "votre entreprise")).strip() or "votre entreprise"
+    candidate = _infer_recipient_salutation(candidate_name or offer_text)
 
     cv_focus = _truncate(cv_text, 400)
     offer_focus = _truncate(offer_text, 400)
@@ -65,8 +96,12 @@ async def generate_motivation_letter(
         "N'invente pas de diplôme, d'entreprise ou d'expérience non présents dans le CV."
     )
 
-    company = (company_name or "").strip()
-    candidate = (candidate_name or "").strip()
+    company = (company_name or _infer_company_name(offer_text, "")).strip()
+    candidate = _infer_recipient_salutation(candidate_name or offer_text)
+
+    company_instruction = (
+        f"Entreprise détectée dans l'offre: {company}." if company else "Aucune entreprise détectée dans l'offre; n'invente pas de nom d'entreprise."
+    )
 
     user_prompt = (
         "Rédige une lettre de motivation en français (entre 180 et 260 mots), "
@@ -77,8 +112,8 @@ async def generate_motivation_letter(
         "- cohérente avec l'offre\n"
         "- ne pas ajouter d'informations non présentes dans le CV\n"
         "- termine par une formule de politesse simple\n\n"
-        f"Nom du candidat (optionnel): {candidate or 'non fourni'}\n"
-        f"Entreprise ciblée (optionnel): {company or 'non fournie'}\n\n"
+        f"Formule d'appel à utiliser: {candidate}\n"
+        f"{company_instruction}\n\n"
         f"CV:\n{_truncate(cv_text)}\n\n"
         f"Offre:\n{_truncate(offer_text)}"
     )
