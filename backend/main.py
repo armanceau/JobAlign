@@ -8,6 +8,7 @@ import re
 
 from services.pdf_text_extractor import extract_text_from_pdf_bytes
 from services.ollama_recommender import generate_local_recommendations
+from services.ollama_cover_letter import generate_motivation_letter
 from nlp.cv_offer_analyzer import analyze_cv_and_offer
 from nlp.matching_scoring import compute_matching_score
 
@@ -37,6 +38,14 @@ class NLPAnalysisRequest(BaseModel):
 class NLPRecommendationRequest(BaseModel):
     cv_text: str = Field(..., min_length=1)
     offer_text: str = Field(..., min_length=1)
+
+
+class MotivationLetterRequest(BaseModel):
+    cv_text: str = Field(..., min_length=1)
+    offer_text: str = Field(..., min_length=1)
+    company_name: str | None = None
+    candidate_name: str | None = None
+    tone: str | None = "professionnel"
 
 @app.get("/")
 async def root():
@@ -191,6 +200,27 @@ async def generate_nlp_recommendations(payload: NLPRecommendationRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Erreur lors de la génération des recommandations: {str(e)}"
+        )
+
+
+@app.post("/nlp/motivation-letter")
+async def generate_motivation_letter_endpoint(payload: MotivationLetterRequest):
+    """Génère une lettre de motivation locale via Ollama selon le CV et l'offre."""
+
+    try:
+        letter_payload = await generate_motivation_letter(
+            cv_text=payload.cv_text,
+            offer_text=payload.offer_text,
+            company_name=payload.company_name,
+            candidate_name=payload.candidate_name,
+            tone=payload.tone or "professionnel",
+        )
+        return JSONResponse(status_code=200, content=letter_payload)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la génération de la lettre: {str(e)}"
         )
 
 if __name__ == "__main__":

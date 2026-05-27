@@ -21,6 +21,7 @@ import DonutChart from "@/components/ui/donutChart";
 import RadarChartUI from "@/components/ui/radarChart";
 import Stepper from "./components/Stepper";
 import { SpinnerBadge } from "./components/ui/spinnerBadge";
+import MotivationLetterGenerator from "./components/MotivationLetterGenerator";
 
 interface AnalysisResults {
   filename?: string;
@@ -103,6 +104,8 @@ interface RecommendationResponse {
   improvements: string[];
 }
 
+type UnknownRecord = Record<string, unknown>;
+
 function App(): React.ReactElement {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [results, setResults] = useState<AnalysisResults | null>(null);
@@ -122,6 +125,71 @@ function App(): React.ReactElement {
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
+  const toText = (value: unknown): string => {
+    if (typeof value === "string") {
+      return value;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+    if (value && typeof value === "object") {
+      const record = value as UnknownRecord;
+      const preferred =
+        record.after ??
+        record.suggestion ??
+        record.action ??
+        record.reason ??
+        record.current ??
+        record.section;
+      if (typeof preferred === "string") {
+        return preferred;
+      }
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  };
+
+  const normalizeRecommendations = (raw: unknown): RecommendationResponse => {
+    const payload = (raw ?? {}) as UnknownRecord;
+
+    const rawMissing = Array.isArray(payload.missing_keywords)
+      ? payload.missing_keywords
+      : [];
+    const rawReformulations = Array.isArray(payload.reformulations)
+      ? payload.reformulations
+      : [];
+    const rawImprovements = Array.isArray(payload.improvements)
+      ? payload.improvements
+      : [];
+
+    return {
+      provider: toText(payload.provider) || "ollama",
+      model: toText(payload.model) || "unknown",
+      status: toText(payload.status) || "ok",
+      summary: toText(payload.summary),
+      missing_keywords: rawMissing
+        .map((item) => toText(item).trim())
+        .filter(Boolean),
+      reformulations: rawReformulations
+        .map((item) => {
+          const value = (item ?? {}) as UnknownRecord;
+          return {
+            before: toText(value.before || value.current).trim(),
+            after: toText(value.after || value.suggestion).trim(),
+            reason: toText(value.reason || value.section).trim(),
+          };
+        })
+        .filter((item) => item.before || item.after || item.reason),
+      improvements: rawImprovements
+        .map((item) => toText(item).trim())
+        .filter(Boolean),
+    };
+  };
 
   const handleUploadSuccess = (fileName: string) => {
     setUploadedCV(fileName);
@@ -169,7 +237,7 @@ function App(): React.ReactElement {
 
       void recommendationsRequest
         .then((recommendationsResponse) => {
-          setRecommendations(recommendationsResponse.data);
+          setRecommendations(normalizeRecommendations(recommendationsResponse.data));
         })
         .catch((error) => {
           if (axios.isAxiosError(error) && error.response?.data?.detail) {
@@ -330,7 +398,7 @@ function App(): React.ReactElement {
     recommendations.improvements.slice(0, 3).forEach((item) => {
       cards.push({
         title: "Amélioration",
-        text: item,
+        text: toText(item),
         detail: "Action concrète pour renforcer l'alignement.",
         criticality: "moyenne",
         order: order++,
@@ -385,7 +453,7 @@ function App(): React.ReactElement {
         <>
           <div className="mb-6">
             <Stepper
-              steps={["CV", "Offre", "Résultats"]}
+              steps={["CV", "Offre", "Résultats", "Lettre"]}
               current={currentStep}
               onStepClick={(s) => setCurrentStep(s)}
             />
@@ -771,6 +839,13 @@ function App(): React.ReactElement {
                     ← Retour
                   </Button>
                   <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => setCurrentStep(4)}
+                  >
+                    Étape finale (optionnel) →
+                  </Button>
+                  <Button
                     onClick={resetAnalysis}
                     variant="outline"
                     className="ml-auto"
@@ -780,6 +855,27 @@ function App(): React.ReactElement {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {currentStep === 4 && (
+            <div className="space-y-4">
+              <MotivationLetterGenerator
+                cvText={extractedText ?? ""}
+                offerText={jobOffer}
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setCurrentStep(3)}>
+                  ← Retour aux résultats
+                </Button>
+                <Button
+                  onClick={resetAnalysis}
+                  variant="outline"
+                  className="ml-auto"
+                >
+                  Recommencer
+                </Button>
+              </div>
+            </div>
           )}
         </>
       </div>
