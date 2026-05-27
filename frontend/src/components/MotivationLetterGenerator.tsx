@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface MotivationLetterResponse {
@@ -22,8 +28,6 @@ export default function MotivationLetterGenerator({
 }: MotivationLetterGeneratorProps): React.ReactElement {
   const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
-  const [companyName, setCompanyName] = useState("");
-  const [candidateName, setCandidateName] = useState("");
   const [tone, setTone] = useState("professionnel");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +48,6 @@ export default function MotivationLetterGenerator({
         {
           cv_text: cvText,
           offer_text: offerText,
-          company_name: companyName || null,
-          candidate_name: candidateName || null,
           tone,
         },
       );
@@ -67,27 +69,10 @@ export default function MotivationLetterGenerator({
       <CardHeader>
         <CardTitle>Étape 4: Lettre de motivation (optionnel)</CardTitle>
         <CardDescription>
-          Génère une lettre alignée avec ton CV et l'offre via Ollama.
+          Génère une lettre alignée avec ton CV et l'offre via Ollama. L'entreprise est déduite automatiquement quand elle est présente dans l'offre.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-2">
-          <input
-            type="text"
-            value={candidateName}
-            onChange={(e) => setCandidateName(e.target.value)}
-            placeholder="Nom du recruteur (optionnel)"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <input
-            type="text"
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            placeholder="Entreprise (optionnel)"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
-
         <select
           value={tone}
           onChange={(e) => setTone(e.target.value)}
