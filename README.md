@@ -61,12 +61,15 @@ flowchart TD
 	D --> E["NLP analyse (spaCy)\n- hard skills\n- soft skills\n- diplômes\n- expériences"]
 	D --> H["Semantic matching (sentence-transformers)\n- embeddings CV\n- embeddings offre\n- similarité cosinus"]
 	E --> H
-	H --> F[Return structured JSON]
+	H --> L["LLM suggestions\n- reformuler CV et points clés\n- suggérer mots-clés pertinents\n- proposer améliorations de phrasing"]
+	E --> L
+	L --> F[Return structured JSON]
 	F --> G[Frontend: display cleaned text + NLP results + semantic score]
 	style A fill:#f9f,stroke:#333,stroke-width:1px
 	style C fill:#ffefc6,stroke:#333
 	style D fill:#ffe0e0,stroke:#333
 	style E fill:#e0ffe0,stroke:#333
 	style H fill:#e6ddff,stroke:#333
+	style L fill:#fff7cc,stroke:#333
 	style G fill:#cfe7ff,stroke:#333
 ```
