@@ -37,6 +37,30 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-27] - Mise en place de docker-compose pour le démarrage local
+
+**Contexte :**
+Besoin d'une exécution simplifiée du projet avec conteneurs, tout en gardant le backend FastAPI, le frontend Vite et Ollama localement alignés.
+
+**Décision :**
+
+- Ajout d'un `docker-compose.yml` à la racine pour lancer le frontend et le backend
+- Ajout de `backend/Dockerfile` et `frontend/Dockerfile` pour construire des images de dev simples
+- Ajout de fichiers `.dockerignore` pour éviter d'embarquer `venv`, `node_modules` et les artefacts temporaires
+- Documentation de la commande unique `docker compose up --build` et des variables minimales dans `README.md`
+
+**Raison :**
+
+- Réduire le coût de démarrage du projet sans modifier le pipeline applicatif
+- Conserver l'approche local-first avec Ollama lancé séparément sur la machine hôte
+- Limiter les variables à l'essentiel pour éviter une configuration Docker inutilement complexe
+
+**Impact :**
+
+- ✅ Démarrage conteneurisé simplifié
+- ✅ Frontend et backend exposés avec les mêmes ports que le setup local
+- ✅ Configuration minimale clarifiée pour l'exécution native et Docker
+
 ### [2026-05-27] - Générateur de lettre de motivation local (étape finale optionnelle)
 
 **Contexte :**

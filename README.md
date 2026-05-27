@@ -6,8 +6,42 @@ CV & Job Offer Analyzer with Local AI
 
 ### Requirements
 
-- Version python : **3.11**
-- Ollama with 1 model
+- Version de python : **3.11**
+- Ollama avec 1 modèle
+
+## Lancement avec Docker
+
+Le plus simple pour démarrer le projet en conteneurs est:
+
+```bash
+docker compose up --build
+```
+
+Cette commande démarre:
+
+- le backend FastAPI sur `http://localhost:8000`
+- le frontend Vite sur `http://localhost:5173`
+
+Avant de lancer le compose, démarrez aussi Ollama sur la machine hôte dans un autre terminal:
+
+```bash
+ollama serve
+```
+
+Variables d'environnement minimales prises en compte par le compose:
+
+- Frontend: `VITE_API_URL=http://localhost:8000`
+- Backend: `OLLAMA_BASE_URL=http://host.docker.internal:11434`, `OLLAMA_MODEL=qwen3.5`
+
+Les autres paramètres conservent leurs valeurs par défaut (`OLLAMA_TIMEOUT_SECONDS`, `OLLAMA_LETTER_MODEL`, `JOBALIGN_EMBEDDING_MODEL`) et ne sont à changer que si vous voulez ajuster le comportement du modèle local.
+
+Le backend attend toujours une instance Ollama locale accessible depuis l'hôte. Sur Docker Desktop, `host.docker.internal` permet au conteneur de joindre Ollama lancé sur la machine.
+
+Résumé du démarrage Docker:
+
+1. lancer `ollama serve` dans un terminal séparé
+2. lancer `docker compose up --build` à la racine du projet
+3. ouvrir `http://localhost:5173`
 
 **Backend:**
 
@@ -31,6 +65,15 @@ npm run dev
 ```bash
 ollama serve
 ```
+
+## Variables d'environnement
+
+Pour un lancement natif sans Docker:
+
+- Backend: `BACKEND_HOST=localhost`, `BACKEND_PORT=8000`, `OLLAMA_BASE_URL=http://localhost:11434`, `OLLAMA_TIMEOUT_SECONDS=60`, `OLLAMA_MODEL=qwen3.5`, `OLLAMA_LETTER_MODEL=qwen3.5`
+- Frontend: `VITE_FRONTEND_PORT=5173`, `VITE_API_URL=http://localhost:8000`
+
+Les modèles Ollama restent locaux et aucun appel API externe n'est utilisé.
 
 ## Structure
 
