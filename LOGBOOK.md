@@ -37,6 +37,55 @@ Conséquences sur le projet
 
 ## 📝 Entrées
 
+### [2026-05-26] - Affichage immédiat du résultat et chargement parallèle des suggestions
+
+**Contexte :**
+Les recommandations LLM bloquaient l'affichage du résultat complet, alors que l'UX attendue est de voir le score et les catégories immédiatement, puis de charger les suggestions en dessous.
+
+**Décision :**
+
+- Séparation de l'API en deux endpoints: `POST /nlp/analyze` et `POST /nlp/recommendations`
+- Le frontend lance les deux requêtes en parallèle
+- Le rendu du résultat s'affiche dès que l'analyse est prête
+- Un bloc dédié affiche le chargement, puis les suggestions locales dès qu'elles reviennent
+
+**Raison :**
+
+- Réduire la latence perçue
+- Éviter de bloquer la lecture du score et du matching sur la génération LLM
+- Conserver le local-first tout en améliorant l'expérience utilisateur
+
+**Impact :**
+
+- ✅ Le résultat s'affiche sans attendre le LLM
+- ✅ Les suggestions continuent de charger dans un bloc séparé
+- ✅ Le contrat backend reste clair: analyse déterministe d'un côté, recommandations locales de l'autre
+
+### [2026-05-26] - Recommandations LLM locales via Ollama
+
+**Contexte :**
+Le pipeline backend renvoyait déjà le scoring déterministe et le matching sémantique, mais aucune recommandation actionnable générée localement n'était exposée au frontend.
+
+**Décision :**
+
+- Ajout d'un service backend dédié aux recommandations locales via Ollama
+- Appel de l'API locale `http://localhost:11434/api/chat` avec un prompt JSON strict
+- Fallback déterministe si Ollama est indisponible ou renvoie une réponse invalide
+- Exposition des suggestions dans la réponse de `POST /nlp/analyze`
+- Affichage côté frontend des mots-clés manquants, reformulations et améliorations
+
+**Raison :**
+
+- Respecter le principe local-first du projet
+- Fournir des recommandations exploitables sans dépendre d'une API externe
+- Garder le scoring principal séparé et explicable
+
+**Impact :**
+
+- ✅ Les suggestions LLM sont désormais générées en local via Ollama
+- ✅ Le frontend reçoit et affiche les recommandations actionnables
+- ✅ Un fallback sécurisé préserve le flux même si Ollama n'est pas disponible
+
 ### [2026-05-26] - Affichage frontend du score sémantique
 
 **Contexte :**

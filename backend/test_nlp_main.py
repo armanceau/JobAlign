@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+import main as main_module
 from main import app
 
 
@@ -35,3 +36,40 @@ def test_nlp_analyze_endpoint_returns_structured_categories(monkeypatch):
     assert any(
         "Score global déterministe" in item for item in data["matching"]["justifications"]
     )
+
+
+def test_nlp_recommendations_endpoint_returns_local_suggestions(monkeypatch):
+    payload = {
+        "cv_text": "Développeur Python avec autonomie.",
+        "offer_text": "Offre demandant Python, FastAPI et Docker.",
+    }
+
+    async def fake_generate_local_recommendations(analysis):
+        return {
+            "provider": "ollama",
+            "model": "qwen3.5",
+            "status": "ok",
+            "summary": "Suggestions locales prêtes.",
+            "missing_keywords": ["FastAPI", "Docker"],
+            "reformulations": [
+                {
+                    "before": "Résumé générique.",
+                    "after": "Ajoutez FastAPI et Docker.",
+                    "reason": "Terme clé demandé.",
+                }
+            ],
+            "improvements": ["Mettre en avant FastAPI."],
+        }
+
+    monkeypatch.setattr(
+        main_module,
+        "generate_local_recommendations",
+        fake_generate_local_recommendations,
+    )
+
+    response = client.post("/nlp/recommendations", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["provider"] == "ollama"
+    assert data["missing_keywords"] == ["FastAPI", "Docker"]
