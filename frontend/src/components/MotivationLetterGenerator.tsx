@@ -76,7 +76,7 @@ export default function MotivationLetterGenerator({
             type="text"
             value={candidateName}
             onChange={(e) => setCandidateName(e.target.value)}
-            placeholder="Nom candidat (optionnel)"
+            placeholder="Nom du recruteur (optionnel)"
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
           <input
